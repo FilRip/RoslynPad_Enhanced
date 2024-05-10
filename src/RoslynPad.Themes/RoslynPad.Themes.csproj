@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+      <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+      <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    </PropertyGroup>
+    <ItemGroup>
+      <None Remove="Themes\vs2019*.json" />
+      <EmbeddedResource Include="Themes\vs2019*.json" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Update="Themes\*.json" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+</Project>
+
