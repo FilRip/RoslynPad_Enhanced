@@ -2,8 +2,6 @@
 
 using RoslynPad.Themes;
 
-#pragma warning disable CA1010 // Generic interface should also be implemented
-
 namespace RoslynPad;
 
 /// <summary>

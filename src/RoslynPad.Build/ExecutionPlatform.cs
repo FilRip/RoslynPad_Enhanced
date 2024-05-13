@@ -15,13 +15,16 @@ public class ExecutionPlatform
 
     internal bool IsDotNetFramework => !IsDotNet;
 
-    internal ExecutionPlatform(string name, string targetFrameworkMoniker, NuGetVersion? frameworkVersion, Architecture architecture, bool isDotNet)
+    internal bool IsAnyCPU { get; }
+
+    internal ExecutionPlatform(string name, string targetFrameworkMoniker, NuGetVersion? frameworkVersion, Architecture architecture, bool isDotNet, bool isAnyCpu)
     {
         Name = name;
         TargetFrameworkMoniker = targetFrameworkMoniker;
         FrameworkVersion = frameworkVersion;
         Architecture = architecture;
         IsDotNet = isDotNet;
+        IsAnyCPU = isAnyCpu;
         Description = $"{Name} {FrameworkVersion}";
     }
 

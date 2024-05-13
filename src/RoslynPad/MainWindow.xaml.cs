@@ -52,7 +52,7 @@ public partial class MainWindow
         _viewModel = serviceProvider.GetRequiredService<MainViewModel>();
         _viewModel.ThemeChanged += OnViewModelThemeChanged;
         _ = Task.Run(_viewModel.InitializeThemeAsync);
-        
+
         DataContext = _viewModel;
         InitializeComponent();
         DocumentsPane.ToggleAutoHide();

@@ -1,6 +1,5 @@
 ﻿using System.Composition;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 using Microsoft.Win32;
 
@@ -28,7 +27,7 @@ internal class PlatformsFactory : IPlatformsFactory
 
         if (string.IsNullOrEmpty(sdkPath))
         {
-            return Array.Empty<ExecutionPlatform>();
+            return [];
         }
 
         var versions = new List<(string name, string tfm, NuGetVersion version)>();
@@ -45,10 +44,10 @@ internal class PlatformsFactory : IPlatformsFactory
         }
 
         return versions.OrderBy(c => c.version.IsPrerelease).ThenByDescending(c => c.version)
-            .Select(version => new ExecutionPlatform(version.name, version.tfm, version.version, Architecture.X64, isDotNet: true));
+            .Select(version => new ExecutionPlatform(version.name, version.tfm, version.version, Architecture.X64, true, true));
     }
 
-    private IEnumerable<ExecutionPlatform> Get1To45VersionFromRegistry()
+    private static List<ExecutionPlatform> Get1To45VersionFromRegistry()
     {
         // Opens the registry key for the .NET Framework entry.
         using RegistryKey? ndpKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\");
@@ -75,12 +74,12 @@ internal class PlatformsFactory : IPlatformsFactory
 
                 // Get the installation flag, or an empty string if there is none.
                 string? install = versionKey.GetValue("Install", "").ToString();
-                if (string.IsNullOrEmpty(install)) // No install info; it must be in a child subkey.
-                    list.AddRange(AddNetFrameworkVersion(name));
+                if (string.IsNullOrEmpty(install) && !string.IsNullOrWhiteSpace(name)) // No install info; it must be in a child subkey.
+                    list.Add(AddNetFrameworkVersion(name));
                 else
                 {
                     if (!(string.IsNullOrEmpty(sp)) && install == "1")
-                        list.AddRange(AddNetFrameworkVersion(name, sp));
+                        list.Add(AddNetFrameworkVersion(name, sp));
                 }
                 if (!string.IsNullOrEmpty(name))
                 {
@@ -97,16 +96,16 @@ internal class PlatformsFactory : IPlatformsFactory
 
                         install = subKey.GetValue("Install", "").ToString();
                         if (string.IsNullOrEmpty(install)) //No install info; it must be later.
-                            list.AddRange(AddNetFrameworkVersion(name));
+                            list.Add(AddNetFrameworkVersion(name));
                         else
                         {
                             if (!(string.IsNullOrEmpty(sp)) && install == "1")
                             {
-                                list.AddRange(AddNetFrameworkVersion(name, sp));
+                                list.Add(AddNetFrameworkVersion(name, sp));
                             }
                             else if (install == "1")
                             {
-                                list.AddRange(AddNetFrameworkVersion(name));
+                                list.Add(AddNetFrameworkVersion(name));
                             }
                         }
                     }
@@ -116,19 +115,15 @@ internal class PlatformsFactory : IPlatformsFactory
         return list;
     }
 
-    private static List<ExecutionPlatform> AddNetFrameworkVersion(string version, string? servicePack = null)
+    private static ExecutionPlatform AddNetFrameworkVersion(string version, string? servicePack = null)
     {
-        string name = ".NET Framework";
+        string name = $".NET Framework {version}";
         if (!string.IsNullOrWhiteSpace(servicePack))
             name += " Service Pack " + servicePack;
-        List<ExecutionPlatform> list = [];
-        list.Add(new ExecutionPlatform(name, version, null, Architecture.X86, false));
-        if (Environment.Is64BitOperatingSystem)
-            list.Add(new ExecutionPlatform(name, version, null, Architecture.X64, false));
-        return list;
+        return new ExecutionPlatform(name + " AnyCPU", version, null, Architecture.X86, false, true);
     }
 
-    private IEnumerable<ExecutionPlatform> Get45PlusFromRegistry()
+    private static List<ExecutionPlatform> Get45PlusFromRegistry()
     {
         const string subkey = @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full\";
 
@@ -138,66 +133,53 @@ internal class PlatformsFactory : IPlatformsFactory
 
         List<ExecutionPlatform> list = [];
         //First check if there's an specific version indicated
-        if (ndpKey.GetValue("Version") != null)
+        if (ndpKey.GetValue("Release") != null)
         {
-            AddNetFrameworkVersion(ndpKey.GetValue("Version").ToString()!);
-        }
-        else
-        {
-            if (ndpKey.GetValue("Release") != null)
+            foreach (string version in CheckFor45PlusVersion((int)ndpKey.GetValue("Release")!))
             {
-                AddNetFrameworkVersion(
-                    CheckFor45PlusVersion(
-                            (int)ndpKey.GetValue("Release")!
-                        )
-                );
+                list.Add(AddNetFrameworkVersion(version));
             }
         }
 
         return list;
 
         // Checking the version using >= enables forward compatibility.
-        string CheckFor45PlusVersion(int releaseKey)
+        static string[] CheckFor45PlusVersion(int releaseKey)
         {
+            List<string> listFramework = [];
             if (releaseKey >= 533320)
-                return "4.8.1";
+                listFramework.Add("4.8.1");
             if (releaseKey >= 528040)
-                return "4.8";
+                listFramework.Add("4.8");
             if (releaseKey >= 461808)
-                return "4.7.2";
+                listFramework.Add("4.7.2");
             if (releaseKey >= 461308)
-                return "4.7.1";
+                listFramework.Add("4.7.1");
             if (releaseKey >= 460798)
-                return "4.7";
+                listFramework.Add("4.7");
             if (releaseKey >= 394802)
-                return "4.6.2";
+                listFramework.Add("4.6.2");
             if (releaseKey >= 394254)
-                return "4.6.1";
+                listFramework.Add("4.6.1");
             if (releaseKey >= 393295)
-                return "4.6";
+                listFramework.Add("4.6");
             if (releaseKey >= 379893)
-                return "4.5.2";
+                listFramework.Add("4.5.2");
             if (releaseKey >= 378675)
-                return "4.5.1";
+                listFramework.Add("4.5.1");
             if (releaseKey >= 378389)
-                return "4.5";
+                listFramework.Add("4.5");
             // This code should never execute. A non-null release key should mean
             // that 4.5 or later is installed.
-            return "";
+            return [.. listFramework];
         }
     }
 
-    private IEnumerable<ExecutionPlatform> GetNetFrameworkVersions()
+    private static IEnumerable<ExecutionPlatform> GetNetFrameworkVersions()
     {
         IEnumerable<ExecutionPlatform> list = Get1To45VersionFromRegistry();
         list = list.Concat(Get45PlusFromRegistry());
         return list;
-        /*var targetFrameworkName = GetNetFrameworkName();
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && RuntimeInformation.OSArchitecture == Architecture.X64)
-        {
-            yield return new ExecutionPlatform(".NET Framework x64", targetFrameworkName, null, Architecture.X64, isDotNet: false);
-        }
-        yield return new ExecutionPlatform(".NET Framework x86", targetFrameworkName, null, Architecture.X86, isDotNet: false);*/
     }
 
     private (string dotnetExe, string sdkPath) FindNetSdk()
@@ -230,7 +212,7 @@ internal class PlatformsFactory : IPlatformsFactory
         var dotnetExe = GetDotnetExe();
         var paths = (from path in dotnetPaths
                      let exePath = Path.Combine(path, dotnetExe)
-                     let fullPath = Path.Combine(path, "sdk")
+                     let fullPath = Path.Combine(path, "shared", "Microsoft.WindowsDesktop.App")
                      where File.Exists(exePath) && Directory.Exists(fullPath)
                      select (exePath, fullPath)).FirstOrDefault<(string exePath, string fullPath)>();
 
@@ -244,37 +226,4 @@ internal class PlatformsFactory : IPlatformsFactory
     }
 
     private static string GetDotnetExe() => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "dotnet.exe" : "dotnet";
-
-    private static string GetNetFrameworkName()
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return string.Empty;
-        }
-
-        const string subkey = @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full\";
-
-        using (var ndpKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32).OpenSubKey(subkey))
-        {
-            var release = ndpKey?.GetValue("Release") as int?;
-            if (release != null)
-            {
-                return GetNetFrameworkTargetName(release.Value);
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static string GetNetFrameworkTargetName(int releaseKey) => releaseKey switch
-    {
-        >= 528040 => "net48",
-        >= 461808 => "net472",
-        >= 461308 => "net471",
-        >= 460798 => "net47",
-        >= 394802 => "net462",
-        >= 394254 => "net461",
-        >= 393295 => "net46",
-        _ => throw new ArgumentOutOfRangeException(nameof(releaseKey))
-    };
 }

@@ -1,9 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Host.Mef;
-using Microsoft.CodeAnalysis.Navigation;
-using Microsoft.CodeAnalysis.Text;
-
-/*
+﻿/*
 namespace RoslynPad.Roslyn.Navigation;
 
 [ExportWorkspaceService(typeof(IDocumentNavigationService))]

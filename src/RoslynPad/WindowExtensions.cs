@@ -14,7 +14,7 @@ public static partial class WindowExtensions
         {
             hwnd = new WindowInteropHelper(window).EnsureHandle();
         });
-        
+
         if (hwnd != IntPtr.Zero)
         {
             var error = DwmSetWindowAttribute(

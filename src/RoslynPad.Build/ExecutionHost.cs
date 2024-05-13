@@ -281,41 +281,41 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
             return false;
         }
 
-        var targetPath = Path.Combine(BuildPath, "Program.cs");
-        var code = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        var syntaxTree = ParseAndTransformCode(code, path, (CSharpParseOptions)_roslynHost.ParseOptions, cancellationToken: cancellationToken);
-        var finalCode = syntaxTree.ToString();
+        string targetPath = Path.Combine(BuildPath, "Program.cs");
+        string code = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+        SyntaxTree syntaxTree = ParseAndTransformCode(code, path, (CSharpParseOptions)_roslynHost.ParseOptions, cancellationToken: cancellationToken);
+        string finalCode = syntaxTree.ToString();
         if (!File.Exists(targetPath) || !string.Equals(await File.ReadAllTextAsync(targetPath, cancellationToken).ConfigureAwait(false), finalCode, StringComparison.Ordinal))
         {
             await File.WriteAllTextAsync(targetPath, finalCode, cancellationToken).ConfigureAwait(false);
         }
 
-        var csprojPath = Path.Combine(BuildPath, "program.csproj");
+        string csprojPath = Path.Combine(BuildPath, "program.csproj");
         if (Platform.IsDotNetFramework || Platform.FrameworkVersion?.Major < 5)
         {
-            var moduleInitAttributeFile = Path.Combine(BuildPath, BuildCode.ModuleInitAttributeName + ".cs");
+            string moduleInitAttributeFile = Path.Combine(BuildPath, BuildCode.ModuleInitAttributeName + ".cs");
             if (!File.Exists(moduleInitAttributeFile))
             {
                 await File.WriteAllTextAsync(moduleInitAttributeFile, BuildCode.ModuleInitAttribute, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        var moduleInitFile = Path.Combine(BuildPath, BuildCode.ModuleInitName + ".cs");
+        string moduleInitFile = Path.Combine(BuildPath, BuildCode.ModuleInitName + ".cs");
         if (!File.Exists(moduleInitFile))
         {
             await File.WriteAllTextAsync(moduleInitFile, BuildCode.ModuleInit, cancellationToken).ConfigureAwait(false);
         }
 
-        var buildArgs =
-            $"-nologo -v:q -p:Configuration={optimizationLevel} -p:AssemblyName={Name} " +
+        string buildArgs =
+            $"-nologo -v:q -p:Configuration={optimizationLevel},Platform={Platform.Architecture} -p:AssemblyName={Name} " +
             $"-bl:ProjectImports=None \"{csprojPath}\" ";
-        using var buildResult = await ProcessUtil.RunProcessAsync(DotNetExecutable, BuildPath,
+        using ProcessUtil.ProcessResult? buildResult = await ProcessUtil.RunProcessAsync(DotNetExecutable, BuildPath,
             $"build {buildArgs}", cancellationToken).ConfigureAwait(false);
         await buildResult.WaitForExitAsync().ConfigureAwait(false);
 
-        var binaryLogPath = Path.Combine(BuildPath, "msbuild.binlog");
-        var reader = Microsoft.Build.Logging.StructuredLogger.BinaryLog.ReadBuild(binaryLogPath);
-        var diagnostics = reader.FindChildrenRecursive<Microsoft.Build.Logging.StructuredLogger.AbstractDiagnostic>();
+        string binaryLogPath = Path.Combine(BuildPath, "msbuild.binlog");
+        Microsoft.Build.Logging.StructuredLogger.Build reader = Microsoft.Build.Logging.StructuredLogger.BinaryLog.ReadBuild(binaryLogPath);
+        IReadOnlyList<Microsoft.Build.Logging.StructuredLogger.AbstractDiagnostic> diagnostics = reader.FindChildrenRecursive<Microsoft.Build.Logging.StructuredLogger.AbstractDiagnostic>();
         CompilationErrors?.Invoke(diagnostics.Where(d => !_parameters.DisabledDiagnostics.Contains(d.Code))
                 .Select(GetCompilationErrorResultObject).ToImmutableArray());
 
@@ -324,8 +324,8 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     private bool CompileInProcess(string path, OptimizationLevel? optimizationLevel, string assemblyPath, CancellationToken cancellationToken)
     {
-        var code = File.ReadAllText(path);
-        var script = CreateCompiler(code, optimizationLevel, cancellationToken);
+        string code = File.ReadAllText(path);
+        Compiler script = CreateCompiler(code, optimizationLevel, cancellationToken);
 
         var diagnostics = script.CompileAndSaveAssembly(assemblyPath, cancellationToken);
         var hasErrors = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
@@ -763,7 +763,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 if (!projBuildResult.MarkerExists)
                 {
                     File.WriteAllText(Path.Combine(projBuildResult.RestorePath, "Program.cs"), "_ = 0;");
-                    await BuildGlobalJsonAsync(projBuildResult.RestorePath).ConfigureAwait(false);
+                    //await BuildGlobalJsonAsync(projBuildResult.RestorePath).ConfigureAwait(false);
                     File.Copy(_parameters.NuGetConfigPath, Path.Combine(projBuildResult.RestorePath, "nuget.config"), overwrite: true);
 
                     var errorsPath = Path.Combine(projBuildResult.RestorePath, "errors.log");
@@ -861,6 +861,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 .ToImmutableArray();
         }
 
+#pragma warning disable CS8321 // La fonction locale est déclarée mais jamais utilisée
         async Task BuildGlobalJsonAsync(string restorePath)
         {
             if (Platform?.IsDotNet != true)
@@ -871,11 +872,12 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
             var globalJson = $@"{{ ""sdk"": {{ ""version"": ""{Platform.FrameworkVersion}"" }} }}";
             await File.WriteAllTextAsync(Path.Combine(restorePath, "global.json"), globalJson, cancellationToken).ConfigureAwait(false);
         }
+#pragma warning restore CS8321 // La fonction locale est déclarée mais jamais utilisée
 
         async Task<CsprojBuildResult> BuildCsprojAsync()
         {
             var csproj = MSBuildHelper.CreateCsproj(
-                Platform.TargetFrameworkMoniker,
+                (Platform.IsDotNet ? "" : "net") + Platform.TargetFrameworkMoniker,
                 _libraries,
                 _parameters.Imports);
 
