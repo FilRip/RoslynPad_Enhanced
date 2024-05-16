@@ -116,7 +116,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
             _output.Write("pinvokeimpl");
             if (method.HasPInvokeInfo && method.PInvokeInfo != null)
             {
-                var info = method.PInvokeInfo;
+                PInvokeInfo info = method.PInvokeInfo;
                 _output.Write("(\"" + TextWriterTokenWriter.ConvertString(info.Module.Name) + "\"");
 
                 if (!string.IsNullOrEmpty(info.EntryPoint) && info.EntryPoint != method.Name)
@@ -203,7 +203,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         WriteAttributes(method.CustomAttributes);
         if (method.HasOverrides)
         {
-            foreach (var methodOverride in method.Overrides)
+            foreach (MethodReference methodOverride in method.Overrides)
             {
                 _output.Write(".override method ");
                 methodOverride.WriteTo(_output);
@@ -211,7 +211,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
             }
         }
         WriteParameterAttributes(0, method.MethodReturnType, method.MethodReturnType);
-        foreach (var p in method.Parameters)
+        foreach (ParameterDefinition p in method.Parameters)
         {
             WriteParameterAttributes(p.Index + 1, p, p);
         }
@@ -619,9 +619,9 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
 
     private void WriteParameters(Collection<ParameterDefinition> parameters)
     {
-        for (var i = 0; i < parameters.Count; i++)
+        for (int i = 0; i < parameters.Count; i++)
         {
-            var p = parameters[i];
+            ParameterDefinition p = parameters[i];
             if (p.IsIn)
                 _output.Write("[in] ");
             if (p.IsOut)
@@ -663,13 +663,13 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         }
         else
         {
-            var typeName = DisassemblerHelpers.PrimitiveTypeName(constant.GetType().FullName!);
+            string? typeName = DisassemblerHelpers.PrimitiveTypeName(constant.GetType().FullName!);
             if (typeName != null && typeName != "string")
             {
                 _output.Write(typeName);
                 _output.Write('(');
-                var cf = constant as float?;
-                var cd = constant as double?;
+                float? cf = constant as float?;
+                double? cd = constant as double?;
                 if (cf.HasValue && (float.IsNaN(cf.Value) || float.IsInfinity(cf.Value)))
                 {
                     _output.Write("0x{0:x8}", BitConverter.ToInt32(BitConverter.GetBytes(cf.Value), 0));
@@ -786,7 +786,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         WriteNestedMethod(".get", property.GetMethod);
         WriteNestedMethod(".set", property.SetMethod);
 
-        foreach (var method in property.OtherMethods)
+        foreach (MethodDefinition method in property.OtherMethods)
         {
             WriteNestedMethod(".other", method);
         }
@@ -827,7 +827,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         WriteNestedMethod(".addon", ev.AddMethod);
         WriteNestedMethod(".removeon", ev.RemoveMethod);
         WriteNestedMethod(".fire", ev.InvokeMethod);
-        foreach (var method in ev.OtherMethods)
+        foreach (MethodDefinition method in ev.OtherMethods)
         {
             WriteNestedMethod(".other", method);
         }
@@ -904,7 +904,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         if (type.HasInterfaces)
         {
             _output.Indent();
-            for (var index = 0; index < type.Interfaces.Count; index++)
+            for (int index = 0; index < type.Interfaces.Count; index++)
             {
                 if (index > 0)
                 {
@@ -919,7 +919,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
 
         _output.WriteLine("{");
         _output.Indent();
-        var oldIsInType = _isInType;
+        bool oldIsInType = _isInType;
         _isInType = true;
         WriteAttributes(type.CustomAttributes);
         WriteSecurityDeclarations(type);
@@ -990,11 +990,11 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         if (p.HasGenericParameters)
         {
             output.Write('<');
-            for (var i = 0; i < p.GenericParameters.Count; i++)
+            for (int i = 0; i < p.GenericParameters.Count; i++)
             {
                 if (i > 0)
                     output.Write(", ");
-                var gp = p.GenericParameters[i];
+                GenericParameter gp = p.GenericParameters[i];
                 if (gp.HasReferenceTypeConstraint)
                 {
                     output.Write("class ");
@@ -1010,7 +1010,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
                 if (gp.HasConstraints)
                 {
                     output.Write('(');
-                    for (var j = 0; j < gp.Constraints.Count; j++)
+                    for (int j = 0; j < gp.Constraints.Count; j++)
                     {
                         if (j > 0)
                             output.Write(", ");
@@ -1041,7 +1041,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         {
             _output.Write(".custom ");
             a.Constructor.WriteTo(_output);
-            var blob = a.GetBlob();
+            byte[] blob = a.GetBlob();
             if (blob != null)
             {
                 _output.Write(" = ");
@@ -1056,7 +1056,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
         _output.Write("(");
         _output.Indent();
 
-        for (var i = 0; i < blob.Length; i++)
+        for (int i = 0; i < blob.Length; i++)
         {
             if (i % 16 == 0 && i < blob.Length - 1)
             {
@@ -1094,9 +1094,9 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
 
     private void WriteFlags<T>(T flags, EnumNameCollection<T> flagNames) where T : struct
     {
-        var val = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
+        long val = Convert.ToInt64(flags, CultureInfo.InvariantCulture);
         long tested = 0;
-        foreach (var pair in flagNames)
+        foreach (KeyValuePair<long, string?> pair in flagNames)
         {
             tested |= pair.Key;
             if ((val & pair.Key) != 0 && pair.Value != null)
@@ -1111,8 +1111,8 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
 
     private void WriteEnum<T>(T enumValue, EnumNameCollection<T> enumNames) where T : struct
     {
-        var val = Convert.ToInt64(enumValue, CultureInfo.InvariantCulture);
-        foreach (var pair in enumNames)
+        long val = Convert.ToInt64(enumValue, CultureInfo.InvariantCulture);
+        foreach (KeyValuePair<long, string?> pair in enumNames)
         {
             if (pair.Key == val)
             {
@@ -1162,9 +1162,9 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
             _output.Write(".namespace " + DisassemblerHelpers.Escape(nameSpace));
             OpenBlock(false);
         }
-        var oldIsInType = _isInType;
+        bool oldIsInType = _isInType;
         _isInType = true;
-        foreach (var td in types)
+        foreach (TypeDefinition td in types)
         {
             _cancellationToken.ThrowIfCancellationRequested();
             DisassembleType(td);
@@ -1199,7 +1199,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
                 _output.Write(" // SHA1");
             _output.WriteLine();
         }
-        var v = asm.Name.Version;
+        Version v = asm.Name.Version;
         if (v != null)
         {
             _output.WriteLine(".ver {0}:{1}:{2}:{3}", v.Major, v.Minor, v.Build, v.Revision);
@@ -1238,7 +1238,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
     {
         if (module.HasExportedTypes)
         {
-            foreach (var exportedType in module.ExportedTypes)
+            foreach (ExportedType exportedType in module.ExportedTypes)
             {
                 _output.Write(".class extern ");
                 if (exportedType.IsForwarder)
@@ -1263,7 +1263,7 @@ internal sealed class ReflectionDisassembler(ITextOutput output, bool detectCont
 
     public void WriteModuleContents(ModuleDefinition module)
     {
-        foreach (var td in module.Types)
+        foreach (TypeDefinition td in module.Types)
         {
             DisassembleType(td);
             _output.WriteLine();

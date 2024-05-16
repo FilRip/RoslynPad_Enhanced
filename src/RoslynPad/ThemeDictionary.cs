@@ -60,7 +60,7 @@ public class ThemeDictionary : ThemeDictionaryBase
             return;
         }
 
-        foreach (var id in s_colors)
+        foreach (string id in s_colors)
         {
             if (theme.TryGetColor(id) is { } color)
             {

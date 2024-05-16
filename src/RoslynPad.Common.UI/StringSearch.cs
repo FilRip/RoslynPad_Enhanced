@@ -22,8 +22,8 @@ public static class StringSearch
 
         public bool MoveNext()
         {
-            var current = Current + 1;
-            var index = _text.AsSpan(current).IndexOfAny(_searchValues);
+            int current = Current + 1;
+            int index = _text.AsSpan(current).IndexOfAny(_searchValues);
             if (index >= 0)
             {
                 Current = current + index;

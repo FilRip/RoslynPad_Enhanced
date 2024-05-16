@@ -14,8 +14,8 @@ internal static class JsonHelpers
             return new SpanDisposer(reader.ValueSpan);
         }
 
-        var length = (int)reader.ValueSequence.Length;
-        var array = ArrayPool<byte>.Shared.Rent(length);
+        int length = (int)reader.ValueSequence.Length;
+        byte[] array = ArrayPool<byte>.Shared.Rent(length);
         reader.ValueSequence.CopyTo(array);
         return new SpanDisposer(array.AsSpan(0, length), array);
     }

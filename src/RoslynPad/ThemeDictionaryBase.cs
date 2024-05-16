@@ -7,15 +7,13 @@ using RoslynPad.Themes;
 
 namespace RoslynPad;
 
-public abstract class ThemeDictionaryBase : ResourceDictionary
+#pragma warning disable CS9113 // Paramètre non lu.
+public abstract class ThemeDictionaryBase(Theme theme) : ResourceDictionary
+#pragma warning restore CS9113 // Paramètre non lu.
 {
-    protected ThemeDictionaryBase(Theme theme)
-    {
-    }
-
     protected void SetThemeColor(string name, string colorString)
     {
-        var brush = CreateBrush(ParseColor(colorString));
+        SolidColorBrush brush = CreateBrush(ParseColor(colorString));
         this[name] = brush;
         this[GetColorKey(name)] = brush.Color;
     }
@@ -35,7 +33,7 @@ public abstract class ThemeDictionaryBase : ResourceDictionary
 
     private static SolidColorBrush CreateBrush(Color color)
     {
-        var brush = new SolidColorBrush(color);
+        SolidColorBrush brush = new(color);
         brush.Freeze();
         return brush;
     }

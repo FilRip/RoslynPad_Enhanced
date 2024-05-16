@@ -7,11 +7,11 @@ internal static class SourceRepositoryExtensions
 {
     public static async Task<IPackageSearchMetadata[]> SearchAsync(this SourceRepository sourceRepository, string searchText, SearchFilter searchFilter, int pageSize, CancellationToken cancellationToken)
     {
-        var searchResource = await sourceRepository.GetResourceAsync<PackageSearchResource>(cancellationToken).ConfigureAwait(false);
+        PackageSearchResource searchResource = await sourceRepository.GetResourceAsync<PackageSearchResource>(cancellationToken).ConfigureAwait(false);
 
         if (searchResource != null)
         {
-            var searchResults = await searchResource.SearchAsync(
+            IEnumerable<IPackageSearchMetadata> searchResults = await searchResource.SearchAsync(
                 searchText,
                 searchFilter,
                 0,

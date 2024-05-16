@@ -17,7 +17,7 @@ public static partial class WindowExtensions
 
         if (hwnd != IntPtr.Zero)
         {
-            var error = DwmSetWindowAttribute(
+            int error = DwmSetWindowAttribute(
                 hwnd,
                 DwmWindowAttribute.DWMWA_USE_IMMERSIVE_DARK_MODE,
                 value,

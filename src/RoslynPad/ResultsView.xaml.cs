@@ -41,7 +41,7 @@ public partial class ResultsView : UserControl
 
     private void CopyToClipboard(object? sender)
     {
-        var result = (sender as FrameworkElement)?.DataContext as IResultObject ??
+        IResultObject? result = (sender as FrameworkElement)?.DataContext as IResultObject ??
                     _contextMenuResultObject;
 
         if (result != null)
@@ -52,15 +52,15 @@ public partial class ResultsView : UserControl
 
     private void CopyAllClick(object? sender, RoutedEventArgs e)
     {
-        var withChildren = ReferenceEquals(sender, CopyAllValuesWithChildren);
+        bool withChildren = ReferenceEquals(sender, CopyAllValuesWithChildren);
 
         CopyAllResultsToClipboard(withChildren);
     }
 
     private void CopyAllResultsToClipboard(bool withChildren)
     {
-        var builder = new StringBuilder();
-        foreach (var result in ViewModel.Results)
+        StringBuilder builder = new();
+        foreach (IResultObject result in ViewModel.Results)
         {
             if (withChildren)
             {
@@ -105,7 +105,7 @@ public partial class ResultsView : UserControl
 
     private void TryJumpToLine(object source)
     {
-        var dataContext = (source as FrameworkElement)?.DataContext;
+        object? dataContext = (source as FrameworkElement)?.DataContext;
         if (dataContext is not IResultWithLineNumber result)
         {
             return;
@@ -118,7 +118,7 @@ public partial class ResultsView : UserControl
     {
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
-            var fontSize = ResultTree.FontSize + (args.Delta > 0 ? 1 : -1);
+            double fontSize = ResultTree.FontSize + (args.Delta > 0 ? 1 : -1);
             if (!MainViewModel.IsValidFontSize(fontSize))
             {
                 return;
@@ -141,7 +141,7 @@ public partial class ResultsView : UserControl
             _contextMenuResultObject = (e.OriginalSource as FrameworkElement)?.DataContext as IResultObject;
         }
 
-        var isResult = _contextMenuResultObject != null;
+        bool isResult = _contextMenuResultObject != null;
         CopyValue.IsEnabled = isResult;
         CopyValueWithChildren.IsEnabled = isResult;
     }

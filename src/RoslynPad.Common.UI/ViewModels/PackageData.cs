@@ -28,13 +28,13 @@ public sealed class PackageData : INuGetPackage
         {
             if (!OtherVersions.IsDefaultOrEmpty)
             {
-                var lastStable = OtherVersions.FirstOrDefault(v => !v.Version.IsPrerelease);
+                PackageData? lastStable = OtherVersions.FirstOrDefault(v => !v.Version.IsPrerelease);
                 if (lastStable != null)
                 {
                     yield return lastStable.Version.ToString();
                 }
 
-                foreach (var version in OtherVersions)
+                foreach (PackageData version in OtherVersions)
                 {
                     if (version != lastStable)
                     {
@@ -58,7 +58,7 @@ public sealed class PackageData : INuGetPackage
     {
         if (_package == null)
             return;
-        var versions = await _package.GetVersionsAsync().ConfigureAwait(false);
+        IEnumerable<VersionInfo> versions = await _package.GetVersionsAsync().ConfigureAwait(false);
         OtherVersions = [.. versions.Select(x => new PackageData(Id, x.Version)).OrderByDescending(x => x.Version)];
     }
 }

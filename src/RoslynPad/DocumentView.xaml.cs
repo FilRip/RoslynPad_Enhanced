@@ -64,7 +64,7 @@ public partial class DocumentView : IDisposable
 
     private void OnDataContextChanged(object? sender, DependencyPropertyChangedEventArgs args)
     {
-        var task = OnDataContextChangedAsync;
+        Func<object, DependencyPropertyChangedEventArgs, Task> task = OnDataContextChangedAsync;
         _ = task.Invoke(this, args);
     }
 
@@ -83,10 +83,10 @@ public partial class DocumentView : IDisposable
         _viewModel.MainViewModel.EditorFontSizeChanged += EditorFontSizeChanged;
         Editor.FontSize = _viewModel.MainViewModel.EditorFontSize;
 
-        var documentText = await _viewModel.LoadTextAsync().ConfigureAwait(true);
+        string documentText = await _viewModel.LoadTextAsync().ConfigureAwait(true);
 
         ViewModel.MainViewModel.ThemeChanged += OnThemeChanged;
-        var documentId = await Editor.InitializeAsync(_viewModel.MainViewModel.RoslynHost, new ThemeClassificationColors(_viewModel.MainViewModel.Theme),
+        DocumentId documentId = await Editor.InitializeAsync(_viewModel.MainViewModel.RoslynHost, new ThemeClassificationColors(_viewModel.MainViewModel.Theme),
             _viewModel.WorkingDirectory, documentText, _viewModel.SourceCodeKind).ConfigureAwait(true);
 
         _viewModel.Initialize(documentId, OnError,
@@ -103,9 +103,9 @@ public partial class DocumentView : IDisposable
 
     private void OnReadInput()
     {
-        var textBox = new TextBox();
+        TextBox textBox = new();
 
-        var dialog = new TaskDialog
+        TaskDialog dialog = new()
         {
             Header = "Console Input",
             Content = textBox,
@@ -150,7 +150,7 @@ public partial class DocumentView : IDisposable
     {
         _ = Dispatcher.InvokeAsync(() =>
         {
-            var text = $"#r \"nuget: {package.Id}, {package.Version}\"{Environment.NewLine}";
+            string text = $"#r \"nuget: {package.Id}, {package.Version}\"{Environment.NewLine}";
             Editor.Document.Insert(0, text, AnchorMovementType.Default);
         });
     }

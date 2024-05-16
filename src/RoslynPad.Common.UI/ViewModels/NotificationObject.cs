@@ -36,7 +36,7 @@ public abstract class NotificationObject : INotifyPropertyChanged, INotifyDataEr
             LazyInitializer.EnsureInitialized(ref _propertyErrors, () => new ConcurrentDictionary<string, List<ErrorInfo>>());
         }
 
-        var errors = _propertyErrors.GetOrAdd(propertyName, _ => new List<ErrorInfo>());
+        List<ErrorInfo> errors = _propertyErrors.GetOrAdd(propertyName, _ => []);
         errors.RemoveAll(e => e.Id == id);
         errors.Add(new ErrorInfo(id, message));
 
@@ -47,7 +47,7 @@ public abstract class NotificationObject : INotifyPropertyChanged, INotifyDataEr
     {
         if (_propertyErrors == null) return;
 
-        _propertyErrors.TryGetValue(propertyName, out var errors);
+        _propertyErrors.TryGetValue(propertyName, out List<ErrorInfo>? errors);
         if (errors?.RemoveAll(e => e.Id == id) > 0)
         {
             OnErrorsChanged(propertyName);
@@ -58,7 +58,7 @@ public abstract class NotificationObject : INotifyPropertyChanged, INotifyDataEr
     {
         if (_propertyErrors == null) return;
 
-        _propertyErrors.TryGetValue(propertyName, out var errors);
+        _propertyErrors.TryGetValue(propertyName, out List<ErrorInfo>? errors);
         if (errors?.Count > 0)
         {
             errors.Clear();
@@ -76,7 +76,9 @@ public abstract class NotificationObject : INotifyPropertyChanged, INotifyDataEr
 
         List<ErrorInfo>? errors = null;
         _propertyErrors?.TryGetValue(propertyName, out errors);
+#pragma warning disable IDE0301 // Simplifier l'initialisation des collections
         return errors?.AsEnumerable() ?? Array.Empty<ErrorInfo>();
+#pragma warning restore IDE0301 // Simplifier l'initialisation des collections
     }
 
     public bool HasErrors => _propertyErrors?.Any(c => c.Value.Count != 0) == true;

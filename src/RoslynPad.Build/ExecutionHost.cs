@@ -144,7 +144,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
         _lock = new SemaphoreSlim(1, 1);
 
         _scriptInitSyntax = SyntaxFactory.ParseSyntaxTree(BuildCode.ScriptInit, roslynHost.ParseOptions.WithKind(SourceCodeKind.Script));
-        var regularParseOptions = roslynHost.ParseOptions.WithKind(SourceCodeKind.Regular);
+        ParseOptions regularParseOptions = roslynHost.ParseOptions.WithKind(SourceCodeKind.Regular);
         _moduleInitAttributeSyntax = SyntaxFactory.ParseSyntaxTree(BuildCode.ModuleInitAttribute, regularParseOptions);
         _moduleInitSyntax = SyntaxFactory.ParseSyntaxTree(BuildCode.ModuleInit, regularParseOptions);
         _importsSyntax = SyntaxFactory.ParseSyntaxTree(GetGlobalUsings(), regularParseOptions);
@@ -210,7 +210,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
     {
         StopProcess();
 
-        foreach (var file in IOUtilities.EnumerateFilesRecursive(BuildPath))
+        foreach (string file in IOUtilities.EnumerateFilesRecursive(BuildPath))
         {
             IOUtilities.PerformIO(() => File.Delete(file));
         }
@@ -230,21 +230,21 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
         await new NoContextYieldAwaitable();
 
-        var task = RestoreTask;
+        Task task = RestoreTask;
         await task;
 
-        using var executeCts = CancelAndCreateNew(ref _executeCts, cancellationToken);
+        using CancellationTokenSource? executeCts = CancelAndCreateNew(ref _executeCts, cancellationToken);
         cancellationToken = executeCts.Token;
 
-        using var _ = await _lock.DisposableWaitAsync(cancellationToken).ConfigureAwait(false);
+        using SemaphoreSlimExtensions.SemaphoreDisposer _ = await _lock.DisposableWaitAsync(cancellationToken).ConfigureAwait(false);
 
         try
         {
             _running = true;
-            var binPath = IsScript ? BuildPath : Path.Combine(BuildPath, "bin");
+            string binPath = IsScript ? BuildPath : Path.Combine(BuildPath, "bin");
             _assemblyPath = Path.Combine(binPath, $"{Name}.{ExecutableExtension}");
 
-            var success = IsScript
+            bool success = IsScript
                 ? CompileInProcess(path, optimizationLevel, _assemblyPath, cancellationToken)
                 : await CompileWithMsbuildAsync(path, optimizationLevel, cancellationToken).ConfigureAwait(false);
 
@@ -327,8 +327,8 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
         string code = File.ReadAllText(path);
         Compiler script = CreateCompiler(code, optimizationLevel, cancellationToken);
 
-        var diagnostics = script.CompileAndSaveAssembly(assemblyPath, cancellationToken);
-        var hasErrors = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+        ImmutableArray<Diagnostic> diagnostics = script.CompileAndSaveAssembly(assemblyPath, cancellationToken);
+        bool hasErrors = diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
         _logInformation(_logger, "Assembly saved at {_assemblyPath}, has errors = {hasErrors}", null);
 
         SendDiagnostics(diagnostics);
@@ -346,28 +346,28 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     private void Disassemble()
     {
-        using var assembly = AssemblyDefinition.ReadAssembly(_assemblyPath);
-        var output = new PlainTextOutput();
-        var disassembler = new ReflectionDisassembler(output, false, CancellationToken.None);
+        using AssemblyDefinition assembly = AssemblyDefinition.ReadAssembly(_assemblyPath);
+        PlainTextOutput output = new();
+        ReflectionDisassembler disassembler = new(output, false, CancellationToken.None);
         disassembler.WriteModuleContents(assembly.MainModule);
         Disassembled?.Invoke(output.ToString());
     }
 
     private Compiler CreateCompiler(string code, OptimizationLevel? optimizationLevel, CancellationToken cancellationToken)
     {
-        var platform = Platform.Architecture == Architecture.X86
+        Platform platform = Platform.Architecture == Architecture.X86
             ? Microsoft.CodeAnalysis.Platform.AnyCpu32BitPreferred
             : Microsoft.CodeAnalysis.Platform.AnyCpu;
 
-        var optimization = optimizationLevel ?? OptimizationLevel.Release;
+        OptimizationLevel optimization = optimizationLevel ?? OptimizationLevel.Release;
 
         _logInformation(_logger, $"Creating script runner, platform = {platform}, " +
             $"references = {MetadataReferences.Select(t => t.Display)}, imports = {_imports}, directory = {_parameters.WorkingDirectory}, " +
             $"optimization = {optimizationLevel}", null);
 
-        var parseOptions = ((CSharpParseOptions)_roslynHost.ParseOptions).WithKind(_parameters.SourceCodeKind);
+        CSharpParseOptions parseOptions = ((CSharpParseOptions)_roslynHost.ParseOptions).WithKind(_parameters.SourceCodeKind);
 
-        var syntaxTrees = ImmutableList.Create(ParseAndTransformCode(code, path: "", parseOptions, cancellationToken));
+        ImmutableList<SyntaxTree> syntaxTrees = [ParseAndTransformCode(code, path: "", parseOptions, cancellationToken)];
         if (_parameters.SourceCodeKind == SourceCodeKind.Script)
         {
             syntaxTrees = syntaxTrees.Insert(0, _scriptInitSyntax);
@@ -396,8 +396,11 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     private async Task ExecuteAssemblyAsync(string assemblyPath, CancellationToken cancellationToken)
     {
-        using var process = new Process { StartInfo = GetProcessStartInfo(assemblyPath) };
-        using var _ = cancellationToken.Register(() =>
+        using Process process = new()
+        {
+            StartInfo = GetProcessStartInfo(assemblyPath),
+        };
+        using CancellationTokenRegistration _ = cancellationToken.Register(() =>
         {
             try
             {
@@ -441,7 +444,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     public async Task SendInputAsync(string input)
     {
-        var stream = _processInputStream;
+        TextWriter? stream = _processInputStream;
         if (stream != null)
         {
             await stream.WriteLineAsync(input).ConfigureAwait(false);
@@ -453,7 +456,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
     {
         while (!reader.EndOfStream)
         {
-            var line = await reader.ReadLineAsync().ConfigureAwait(false);
+            string? line = await reader.ReadLineAsync().ConfigureAwait(false);
             if (line != null)
             {
                 Dumped?.Invoke(new ResultObject { Value = line });
@@ -464,16 +467,19 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
     private async Task ReadObjectProcessStreamAsync(StreamReader reader)
     {
         const int prefixLength = 2;
-        using var sequence = new Sequence<byte>(ArrayPool<byte>.Shared) { AutoIncreaseMinimumSpanLength = false };
+        using Sequence<byte> sequence = new(ArrayPool<byte>.Shared)
+        {
+            AutoIncreaseMinimumSpanLength = false,
+        };
         while (true)
         {
-            var eolPosition = await ReadLineAsync().ConfigureAwait(false);
+            SequencePosition? eolPosition = await ReadLineAsync().ConfigureAwait(false);
             if (eolPosition == null)
             {
                 return;
             }
 
-            var readOnlySequence = sequence.AsReadOnlySequence;
+            ReadOnlySequence<byte> readOnlySequence = sequence.AsReadOnlySequence;
             if (readOnlySequence.FirstSpan.Length > 1 && readOnlySequence.FirstSpan[1] == ':')
             {
                 switch (readOnlySequence.FirstSpan[0])
@@ -482,15 +488,15 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                         ReadInput?.Invoke();
                         break;
                     case (byte)'o':
-                        var objectResult = Deserialize<ResultObject>(readOnlySequence);
+                        ResultObject objectResult = Deserialize<ResultObject>(readOnlySequence);
                         Dumped?.Invoke(objectResult);
                         break;
                     case (byte)'e':
-                        var exceptionResult = Deserialize<ExceptionResultObject>(readOnlySequence);
+                        ExceptionResultObject exceptionResult = Deserialize<ExceptionResultObject>(readOnlySequence);
                         Error?.Invoke(exceptionResult);
                         break;
                     case (byte)'p':
-                        var progressResult = Deserialize<ProgressResultObject>(readOnlySequence);
+                        ProgressResultObject progressResult = Deserialize<ProgressResultObject>(readOnlySequence);
                         ProgressChanged?.Invoke(progressResult);
                         break;
 
@@ -502,8 +508,8 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
         async ValueTask<SequencePosition?> ReadLineAsync()
         {
-            var readOnlySequence = sequence.AsReadOnlySequence;
-            var position = readOnlySequence.PositionOf(s_newLine[^1]);
+            ReadOnlySequence<byte> readOnlySequence = sequence.AsReadOnlySequence;
+            SequencePosition? position = readOnlySequence.PositionOf(s_newLine[^1]);
             if (position != null)
             {
                 return readOnlySequence.GetPosition(1, position.Value);
@@ -511,14 +517,14 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
             while (true)
             {
-                var memory = sequence.GetMemory(0);
-                var read = await reader.BaseStream.ReadAsync(memory).ConfigureAwait(false);
+                Memory<byte> memory = sequence.GetMemory(0);
+                int read = await reader.BaseStream.ReadAsync(memory).ConfigureAwait(false);
                 if (read == 0)
                 {
                     return null;
                 }
 
-                var eolIndex = memory.Span[..read].IndexOf(s_newLine[^1]);
+                int eolIndex = memory.Span[..read].IndexOf(s_newLine[^1]);
                 if (eolIndex != -1)
                 {
                     var length = sequence.Length;
@@ -533,15 +539,15 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
         static T Deserialize<T>(ReadOnlySequence<byte> sequence)
         {
-            var jsonReader = new Utf8JsonReader(sequence.Slice(prefixLength));
+            Utf8JsonReader jsonReader = new(sequence.Slice(prefixLength));
             return JsonSerializer.Deserialize<T>(ref jsonReader, s_serializerOptions)!;
         }
     }
 
     private static SyntaxTree ParseAndTransformCode(string code, string path, CSharpParseOptions parseOptions, CancellationToken cancellationToken)
     {
-        var tree = SyntaxFactory.ParseSyntaxTree(code, parseOptions, path, cancellationToken: cancellationToken);
-        var root = tree.GetRoot(cancellationToken);
+        SyntaxTree tree = SyntaxFactory.ParseSyntaxTree(code, parseOptions, path, cancellationToken: cancellationToken);
+        SyntaxNode root = tree.GetRoot(cancellationToken);
 
         if (root is not CompilationUnitSyntax compilationUnit)
         {
@@ -549,7 +555,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
         }
 
         // references directives are resolved by msbuild, so removing from compilation
-        var nodesToRemove = compilationUnit.GetReferenceDirectives().AsEnumerable<SyntaxNode>();
+        IEnumerable<SyntaxNode> nodesToRemove = compilationUnit.GetReferenceDirectives().AsEnumerable<SyntaxNode>();
         if (parseOptions.Kind == SourceCodeKind.Regular)
         {
             // load directives' files are added to the compilation separately
@@ -557,14 +563,14 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
         }
 
         compilationUnit = compilationUnit.RemoveNodes(nodesToRemove, SyntaxRemoveOptions.KeepExteriorTrivia) ?? compilationUnit;
-        var members = compilationUnit.Members;
+        SyntaxList<MemberDeclarationSyntax> members = compilationUnit.Members;
 
         // add .Dump() to the last bare expression
-        var lastMissingSemicolon = compilationUnit.Members.OfType<GlobalStatementSyntax>()
+        GlobalStatementSyntax? lastMissingSemicolon = compilationUnit.Members.OfType<GlobalStatementSyntax>()
             .LastOrDefault(m => m.Statement is ExpressionStatementSyntax expr && expr.SemicolonToken.IsMissing);
         if (lastMissingSemicolon != null)
         {
-            var statement = (ExpressionStatementSyntax)lastMissingSemicolon.Statement;
+            ExpressionStatementSyntax statement = (ExpressionStatementSyntax)lastMissingSemicolon.Statement;
             members = members.Replace(lastMissingSemicolon, BuildCode.GetDumpCall(statement));
         }
 
@@ -592,9 +598,9 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     private static CompilationErrorResultObject GetCompilationErrorResultObject(Diagnostic diagnostic)
     {
-        var lineSpan = diagnostic.Location.GetLineSpan();
+        FileLinePositionSpan lineSpan = diagnostic.Location.GetLineSpan();
 
-        var result = CompilationErrorResultObject.Create(diagnostic.Severity.ToString(),
+        CompilationErrorResultObject? result = CompilationErrorResultObject.Create(diagnostic.Severity.ToString(),
                 diagnostic.Id, diagnostic.GetMessage(CultureInfo.InvariantCulture),
                 lineSpan.StartLinePosition.Line, lineSpan.StartLinePosition.Character);
         return result;
@@ -610,13 +616,13 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
     public async Task UpdateReferencesAsync(bool alwaysRestore)
     {
-        var syntaxRoot = await GetSyntaxRootAsync().ConfigureAwait(false);
+        SyntaxNode? syntaxRoot = await GetSyntaxRootAsync().ConfigureAwait(false);
         if (syntaxRoot == null)
         {
             return;
         }
 
-        var libraries = ParseReferences(syntaxRoot).Append(Platform.IsDotNet ? _runtimeAssemblyLibraryRef : _runtimeNetFxAssemblyLibraryRef);
+        IEnumerable<LibraryRef>? libraries = ParseReferences(syntaxRoot).Append(Platform.IsDotNet ? _runtimeAssemblyLibraryRef : _runtimeNetFxAssemblyLibraryRef);
         if (UpdateLibraries(libraries))
         {
             await RestoreAsync().ConfigureAwait(false);
@@ -629,7 +635,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 return null;
             }
 
-            var document = _roslynHost.GetDocument(DocumentId);
+            Document? document = _roslynHost.GetDocument(DocumentId);
             return document != null ? await document.GetSyntaxRootAsync().ConfigureAwait(false) : null;
         }
 
@@ -657,7 +663,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
             const string LegacyNuGetPrefix = "$NuGet\\";
             const string FxPrefix = "framework:";
 
-            var libraries = new List<LibraryRef>();
+            List<LibraryRef> libraries = [];
 
             if (syntaxRoot is not CompilationUnitSyntax compilation)
             {
@@ -666,7 +672,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
             foreach (var directive in compilation.GetReferenceDirectives())
             {
-                var value = directive.File.ValueText;
+                string value = directive.File.ValueText;
                 string? id, version;
 
                 if (HasPrefix(FxPrefix, value))
@@ -711,7 +717,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
             static (string? id, string? version) ParseLegacyNuGetReference(string value)
             {
-                var split = value.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+                string[] split = value.Split('\\', StringSplitOptions.RemoveEmptyEntries);
                 return split.Length >= 3 ? (split[1], split[2]) : (null, null);
             }
         }
@@ -728,12 +734,12 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
             return;
         }
 
-        var restoreCts = CancelAndCreateNew(ref _restoreCts, cancellationToken);
+        CancellationTokenSource restoreCts = CancelAndCreateNew(ref _restoreCts, cancellationToken);
         cancellationToken = restoreCts.Token;
 
         RestoreStarted?.Invoke();
 
-        var lockDisposer = await _lock.DisposableWaitAsync(cancellationToken).ConfigureAwait(false);
+        SemaphoreSlimExtensions.SemaphoreDisposer lockDisposer = await _lock.DisposableWaitAsync(cancellationToken).ConfigureAwait(false);
         _restoreTask = DoRestoreAsync(RestoreTask, cancellationToken);
 
         async Task DoRestoreAsync(Task previousTask, CancellationToken cancellationToken)
@@ -748,7 +754,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
                 try
                 {
-                    var task = previousTask;
+                    Task task = previousTask;
                     await task;
                 }
                 catch (Exception ex)
@@ -756,9 +762,9 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                     _logWarning(_logger, "Error in previous restore task", ex);
                 }
 
-                var projBuildResult = await BuildCsprojAsync().ConfigureAwait(false);
+                CsprojBuildResult projBuildResult = await BuildCsprojAsync().ConfigureAwait(false);
 
-                var outputPath = Path.Combine(projBuildResult.RestorePath, "output.json");
+                string outputPath = Path.Combine(projBuildResult.RestorePath, "output.json");
 
                 if (!projBuildResult.MarkerExists)
                 {
@@ -766,29 +772,29 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                     //await BuildGlobalJsonAsync(projBuildResult.RestorePath).ConfigureAwait(false);
                     File.Copy(_parameters.NuGetConfigPath, Path.Combine(projBuildResult.RestorePath, "nuget.config"), overwrite: true);
 
-                    var errorsPath = Path.Combine(projBuildResult.RestorePath, "errors.log");
+                    string errorsPath = Path.Combine(projBuildResult.RestorePath, "errors.log");
                     File.Delete(errorsPath);
 
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var buildArgs =
+                    string buildArgs =
                         $"--interactive -nologo " +
                         $"-flp:errorsonly;logfile=\"{errorsPath}\" \"{projBuildResult.CsprojPath}\" " +
                         $"-getTargetResult:build -getItem:ReferencePathWithRefAssemblies,Analyzer ";
-                    using var restoreResult = await ProcessUtil.RunProcessAsync(DotNetExecutable, BuildPath,
+                    using ProcessUtil.ProcessResult restoreResult = await ProcessUtil.RunProcessAsync(DotNetExecutable, BuildPath,
                         $"build {buildArgs}", cancellationToken).ConfigureAwait(false);
 
                     await restoreResult.GetStandardOutputLinesAsync().LastOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
                     if (restoreResult.ExitCode != 0)
                     {
-                        var errors = await GetErrorsAsync(errorsPath, restoreResult, cancellationToken).ConfigureAwait(false);
+                        string[] errors = await GetErrorsAsync(errorsPath, restoreResult, cancellationToken).ConfigureAwait(false);
                         RestoreCompleted?.Invoke(RestoreResult.FromErrors(errors));
                         return;
                     }
 
-                    var restoreOutput = JsonSerializer.Deserialize<BuildOutput>(restoreResult.StandardOutput);
-                    using var resultOutputStream = File.OpenWrite(outputPath);
+                    BuildOutput? restoreOutput = JsonSerializer.Deserialize<BuildOutput>(restoreResult.StandardOutput);
+                    using FileStream resultOutputStream = File.OpenWrite(outputPath);
                     await JsonSerializer.SerializeAsync(resultOutputStream, restoreOutput, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                     if (projBuildResult.UsesCache)
@@ -813,10 +819,10 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
                     if (IsScript)
                     {
-                        foreach (var fileToRename in s_binFilesToRename)
+                        foreach (string fileToRename in s_binFilesToRename)
                         {
-                            var originalFile = Path.Combine(BuildPath, string.Format(CultureInfo.InvariantCulture, fileToRename, "program"));
-                            var newFile = Path.Combine(BuildPath, string.Format(CultureInfo.InvariantCulture, fileToRename, Name));
+                            string originalFile = Path.Combine(BuildPath, string.Format(CultureInfo.InvariantCulture, fileToRename, "program"));
+                            string newFile = Path.Combine(BuildPath, string.Format(CultureInfo.InvariantCulture, fileToRename, Name));
                             if (File.Exists(originalFile))
                             {
                                 File.Move(originalFile, newFile, overwrite: true);
@@ -841,8 +847,8 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
         async Task ReadReferencesAsync(string path, CancellationToken cancellationToken)
         {
-            using var stream = File.OpenRead(path);
-            var output = await JsonSerializer.DeserializeAsync<BuildOutput>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            using FileStream stream = File.OpenRead(path);
+            BuildOutput? output = await JsonSerializer.DeserializeAsync<BuildOutput>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (output is null)
             {
                 return;
@@ -869,14 +875,14 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 return;
             }
 
-            var globalJson = $@"{{ ""sdk"": {{ ""version"": ""{Platform.FrameworkVersion}"" }} }}";
+            string globalJson = $@"{{ ""sdk"": {{ ""version"": ""{Platform.FrameworkVersion}"" }} }}";
             await File.WriteAllTextAsync(Path.Combine(restorePath, "global.json"), globalJson, cancellationToken).ConfigureAwait(false);
         }
 #pragma warning restore CS8321 // La fonction locale est déclarée mais jamais utilisée
 
         async Task<CsprojBuildResult> BuildCsprojAsync()
         {
-            var csproj = MSBuildHelper.CreateCsproj(
+            XDocument csproj = MSBuildHelper.CreateCsproj(
                 (Platform.IsDotNet ? "" : "net") + Platform.TargetFrameworkMoniker,
                 _libraries,
                 _parameters.Imports);
@@ -887,8 +893,8 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
             if (UseCache)
             {
-                var hash = GetHash(csproj.ToString(SaveOptions.DisableFormatting), Platform.Description, s_version);
-                var hashedRestorePath = Path.Combine(_restoreCachePath, hash);
+                string hash = GetHash(csproj.ToString(SaveOptions.DisableFormatting), Platform.Description, s_version);
+                string hashedRestorePath = Path.Combine(_restoreCachePath, hash);
                 Directory.CreateDirectory(hashedRestorePath);
 
                 csprojPath = Path.Combine(hashedRestorePath, "program.csproj");
@@ -924,7 +930,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 }
                 else
                 {
-                    for (var i = 0; i < errors.Length; i++)
+                    for (int i = 0; i < errors.Length; i++)
                     {
                         var match = ErrorMatcher().Match(errors[i]);
                         if (match.Success)
@@ -956,7 +962,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 cts.Dispose();
             }
 
-            var newCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            CancellationTokenSource newCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts = newCts;
             return newCts;
         }
@@ -965,7 +971,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
     private static string GetHash(string a, string b, string c)
     {
         Span<byte> hashBuffer = stackalloc byte[32];
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         hash.AppendData(MemoryMarshal.AsBytes(a.AsSpan()));
         hash.AppendData(MemoryMarshal.AsBytes(b.AsSpan()));
         hash.AppendData(MemoryMarshal.AsBytes(c.AsSpan()));
@@ -977,7 +983,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
     {
         public override bool Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            using var span = reader.GetSpan();
+            using JsonHelpers.SpanDisposer span = reader.GetSpan();
             return Utf8Parser.TryParse(span.Span, out bool value, out _) ? value : throw new FormatException();
         }
 

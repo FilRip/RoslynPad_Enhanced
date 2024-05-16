@@ -10,12 +10,12 @@ internal record LibraryRef(LibraryRef.RefKind Kind, string Value, string Version
     {
         if (other == null) return 1;
 
-        if (Kind.CompareTo(other.Kind) is var kindCompare and not 0)
+        if (Kind.CompareTo(other.Kind) is int kindCompare and not 0)
         {
             return kindCompare;
         }
 
-        if (StringComparer.Ordinal.Compare(Value, other.Value) is var valueCompare and not 0)
+        if (StringComparer.Ordinal.Compare(Value, other.Value) is int valueCompare and not 0)
         {
             return valueCompare;
         }

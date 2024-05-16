@@ -23,22 +23,22 @@ internal class PlatformsFactory : IPlatformsFactory
 
     private IEnumerable<ExecutionPlatform> GetNetVersions()
     {
-        var (_, sdkPath) = FindNetSdk();
+        (string _, string sdkPath) = FindNetSdk();
 
         if (string.IsNullOrEmpty(sdkPath))
         {
             return [];
         }
 
-        var versions = new List<(string name, string tfm, NuGetVersion version)>();
+        List<(string name, string tfm, NuGetVersion version)> versions = [];
 
-        foreach (var directory in IOUtilities.EnumerateDirectories(sdkPath))
+        foreach (string directory in IOUtilities.EnumerateDirectories(sdkPath))
         {
-            var versionName = Path.GetFileName(directory);
+            string versionName = Path.GetFileName(directory);
             if (NuGetVersion.TryParse(versionName, out var version) && version.Major > 1)
             {
-                var name = version.Major < 5 ? ".NET Core" : ".NET";
-                var tfm = version.Major < 5 ? $"netcoreapp{version.Major}.{version.Minor}" : $"net{version.Major}.{version.Minor}";
+                string name = version.Major < 5 ? ".NET Core" : ".NET";
+                string tfm = version.Major < 5 ? $"netcoreapp{version.Major}.{version.Minor}" : $"net{version.Major}.{version.Minor}";
                 versions.Add((name, tfm, version));
             }
         }
@@ -209,8 +209,8 @@ internal class PlatformsFactory : IPlatformsFactory
             ]);
         }
 
-        var dotnetExe = GetDotnetExe();
-        var paths = (from path in dotnetPaths
+        string dotnetExe = GetDotnetExe();
+        (string exePath, string fullPath) paths = (from path in dotnetPaths
                      let exePath = Path.Combine(path, dotnetExe)
                      let fullPath = Path.Combine(path, "shared", "Microsoft.WindowsDesktop.App")
                      where File.Exists(exePath) && Directory.Exists(fullPath)

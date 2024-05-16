@@ -35,7 +35,7 @@ public partial class MainWindow
     {
         Loaded += OnLoaded;
 
-        var services = new ServiceCollection();
+        ServiceCollection services = new();
         services.AddLogging(l =>
         {
 #if DEBUG
@@ -43,11 +43,11 @@ public partial class MainWindow
 #endif
         });
 
-        var container = new ContainerConfiguration()
+        ContainerConfiguration container = new ContainerConfiguration()
             .WithProvider(new ServiceCollectionExportDescriptorProvider(services))
             .WithAssembly(typeof(MainViewModel).Assembly)   // RoslynPad.Common.UI
             .WithAssembly(typeof(MainWindow).Assembly);     // RoslynPad
-        var serviceProvider = container.CreateContainer().GetExport<IServiceProvider>();
+        IServiceProvider? serviceProvider = container.CreateContainer().GetExport<IServiceProvider>();
 
         _viewModel = serviceProvider.GetRequiredService<MainViewModel>();
         _viewModel.ThemeChanged += OnViewModelThemeChanged;
@@ -65,7 +65,7 @@ public partial class MainWindow
 
     private void OnViewModelThemeChanged(object? sender, EventArgs e)
     {
-        var app = Application.Current;
+        Application app = Application.Current;
         if (_themeDictionary is not null)
         {
             app.Resources.MergedDictionaries.Remove(_themeDictionary);
@@ -136,13 +136,13 @@ public partial class MainWindow
 
     private void LoadWindowLayout()
     {
-        var boundsString = _viewModel.Settings.WindowBounds;
+        string? boundsString = _viewModel.Settings.WindowBounds;
 
         if (!string.IsNullOrEmpty(boundsString))
         {
             try
             {
-                var bounds = Rect.Parse(boundsString);
+                Rect bounds = Rect.Parse(boundsString);
                 if (bounds != default)
                 {
                     Left = bounds.Left;
@@ -179,11 +179,12 @@ public partial class MainWindow
 
     private void LoadDockLayout()
     {
-        var layout = _viewModel.Settings.DockLayout;
-        if (string.IsNullOrEmpty(layout)) return;
+        string? layout = _viewModel.Settings.DockLayout;
+        if (string.IsNullOrEmpty(layout))
+            return;
 
-        var serializer = new XmlLayoutSerializer(DockingManager);
-        var reader = new StringReader(layout);
+        XmlLayoutSerializer serializer = new(DockingManager);
+        StringReader reader = new(layout);
         try
         {
             serializer.Deserialize(reader);
@@ -196,9 +197,9 @@ public partial class MainWindow
 
     private void SaveDockLayout()
     {
-        var serializer = new XmlLayoutSerializer(DockingManager);
-        var document = new XDocument();
-        using (var writer = document.CreateWriter())
+        XmlLayoutSerializer serializer = new(DockingManager);
+        XDocument document = new();
+        using (System.Xml.XmlWriter writer = document.CreateWriter())
         {
             serializer.Serialize(writer);
         }
@@ -216,7 +217,7 @@ public partial class MainWindow
     private void DockingManager_OnDocumentClosing(object? sender, DocumentClosingEventArgs e)
     {
         e.Cancel = true;
-        var document = (OpenDocumentViewModel)e.Document.Content;
+        OpenDocumentViewModel document = (OpenDocumentViewModel)e.Document.Content;
         _ = _viewModel.CloseDocumentAsync(document).ConfigureAwait(false);
     }
 
@@ -224,14 +225,14 @@ public partial class MainWindow
     {
         if (_viewModel.LastError == null) return;
 
-        var taskDialog = new TaskDialog
+        TaskDialog taskDialog = new()
         {
             Header = "Unhandled Exception",
             Content = _viewModel.LastError.ToString(),
             Buttons =
             {
-                TaskDialogButtonData.FromStandardButtons(TaskDialogButtons.Close).First()
-            }
+                TaskDialogButtonData.FromStandardButtons(TaskDialogButtons.Close).First(),
+            },
         };
 
         taskDialog.SetResourceReference(BackgroundProperty, SystemColors.WindowBrushKey);

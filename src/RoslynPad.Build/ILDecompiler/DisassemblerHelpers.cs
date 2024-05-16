@@ -126,7 +126,7 @@ internal static class DisassemblerHelpers
         if (method is GenericInstanceMethod gim)
         {
             writer.Write('<');
-            for (var i = 0; i < gim.GenericArguments.Count; i++)
+            for (int i = 0; i < gim.GenericArguments.Count; i++)
             {
                 if (i > 0)
                     writer.Write(", ");
@@ -137,7 +137,7 @@ internal static class DisassemblerHelpers
 
         writer.Write("(");
         var parameters = method.Parameters;
-        for (var i = 0; i < parameters.Count; ++i)
+        for (int i = 0; i < parameters.Count; ++i)
         {
             if (i > 0) writer.Write(", ");
             parameters[i].ParameterType.WriteTo(writer, ILNameSyntax.SignatureNoNamedTypeParameters);
@@ -156,7 +156,7 @@ internal static class DisassemblerHelpers
 
     public static void WriteTo(this TypeReference type, ITextOutput writer, ILNameSyntax syntax = ILNameSyntax.Signature)
     {
-        var syntaxForElementTypes = syntax == ILNameSyntax.SignatureNoNamedTypeParameters ? syntax : ILNameSyntax.Signature;
+        ILNameSyntax syntaxForElementTypes = syntax == ILNameSyntax.SignatureNoNamedTypeParameters ? syntax : ILNameSyntax.Signature;
 
         switch (type)
         {
@@ -191,8 +191,8 @@ internal static class DisassemblerHelpers
                 {
                     type.GetElementType().WriteTo(writer, syntaxForElementTypes);
                     writer.Write('<');
-                    var arguments = genericInstanceType.GenericArguments;
-                    for (var i = 0; i < arguments.Count; i++)
+                    Mono.Collections.Generic.Collection<TypeReference> arguments = genericInstanceType.GenericArguments;
+                    for (int i = 0; i < arguments.Count; i++)
                     {
                         if (i > 0)
                             writer.Write(", ");
@@ -215,7 +215,7 @@ internal static class DisassemblerHelpers
                 writer.Write(") ");
                 break;
             default:
-                var name = PrimitiveTypeName(type.FullName);
+                string? name = PrimitiveTypeName(type.FullName);
                 if (syntax == ILNameSyntax.ShortTypeName)
                 {
                     if (name != null)
@@ -253,7 +253,7 @@ internal static class DisassemblerHelpers
     private static void WriteLabelList(ITextOutput writer, Instruction[] instructions)
     {
         writer.Write("(");
-        for (var i = 0; i < instructions.Length; i++)
+        for (int i = 0; i < instructions.Length; i++)
         {
             if (i != 0) writer.Write(", ");
             WriteOffsetReference(writer, instructions[i]);
@@ -263,7 +263,7 @@ internal static class DisassemblerHelpers
 
     private static string ToInvariantCultureString(object value)
     {
-        var convertible = value as IConvertible;
+        IConvertible? convertible = value as IConvertible;
         return convertible?.ToString(CultureInfo.InvariantCulture) ?? value.ToString()!;
     }
 
@@ -281,7 +281,7 @@ internal static class DisassemblerHelpers
             // As a special case, .ctor and .cctor are valid despite starting with a dot
             return identifier == ".ctor" || identifier == ".cctor";
         }
-        for (var i = 1; i < identifier.Length; i++)
+        for (int i = 1; i < identifier.Length; i++)
         {
             if (!(char.IsLetterOrDigit(identifier[i]) || IsValidIdentifierCharacter(identifier[i]) || identifier[i] == '.'))
                 return false;
@@ -321,8 +321,8 @@ internal static class DisassemblerHelpers
 
     private static HashSet<string> BuildKeywordList(params string[] keywords)
     {
-        var s = new HashSet<string>(keywords);
-        foreach (var field in typeof(OpCodes).GetRuntimeFields())
+        HashSet<string> s = new(keywords);
+        foreach (FieldInfo field in typeof(OpCodes).GetRuntimeFields())
         {
             if (field.FieldType == typeof(OpCode))
             {
@@ -393,7 +393,7 @@ internal static class DisassemblerHelpers
                 }
                 else if (float.IsInfinity(floatOperand) || float.IsNaN(floatOperand))
                 {
-                    var data = BitConverter.GetBytes(floatOperand);
+                    byte[] data = BitConverter.GetBytes(floatOperand);
                     writer.Write('(');
                     for (var i = 0; i < data.Length; i++)
                     {
@@ -422,7 +422,7 @@ internal static class DisassemblerHelpers
                 }
                 else if (double.IsInfinity(doubleOperand) || double.IsNaN(doubleOperand))
                 {
-                    var data = BitConverter.GetBytes(doubleOperand);
+                    byte[] data = BitConverter.GetBytes(doubleOperand);
                     writer.Write('(');
                     for (var i = 0; i < data.Length; i++)
                     {

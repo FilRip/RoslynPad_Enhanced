@@ -16,7 +16,7 @@ internal class ContextActionsBulbContextMenu : ContextMenu
 
     private Style CreateItemContainerStyle()
     {
-        var style = new Style(typeof(MenuItem), TryFindResource(typeof(MenuItem)) as Style);
+        Style style = new(typeof(MenuItem), TryFindResource(typeof(MenuItem)) as Style);
         style.Setters.Add(new Setter(MenuItem.CommandProperty,
             new Binding { Converter = _converter }));
         style.Seal();

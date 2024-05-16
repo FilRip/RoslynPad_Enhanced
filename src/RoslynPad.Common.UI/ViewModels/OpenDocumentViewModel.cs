@@ -107,7 +107,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
                 return _sourceCodeKind.Value;
             }
 
-            var isScript = (Path.GetExtension(Document?.Name)?.Equals(ScriptFileExtension, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException("Document not initialized");
+            bool isScript = (Path.GetExtension(Document?.Name)?.Equals(ScriptFileExtension, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException("Document not initialized");
             _sourceCodeKind = (isScript ? SourceCodeKind.Script : SourceCodeKind.Regular);
             return _sourceCodeKind.Value;
         }
@@ -170,7 +170,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
     [MemberNotNull(nameof(_executionHost))]
     private void InitializeExecutionHost()
     {
-        var roslynHost = MainViewModel.RoslynHost;
+        Roslyn.RoslynHost roslynHost = MainViewModel.RoslynHost;
 
         _executionHostParameters = new ExecutionHostParameters(
             BuildPath,
@@ -230,14 +230,14 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
         if (restoreResult.Success)
         {
-            var host = MainViewModel.RoslynHost;
-            var document = host.GetDocument(DocumentId);
+            Roslyn.RoslynHost host = MainViewModel.RoslynHost;
+            Document? document = host.GetDocument(DocumentId);
             if (document == null)
             {
                 return;
             }
 
-            var project = document.Project;
+            Project project = document.Project;
 
             project = project
                 .WithMetadataReferences(_executionHost.MetadataReferences)
@@ -250,7 +250,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
         }
         else
         {
-            foreach (var error in restoreResult.Errors)
+            foreach (string error in restoreResult.Errors)
             {
                 AddRestoreResult(new RestoreResultObject(error, "Error"));
             }
@@ -345,23 +345,24 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
     private async Task RenameSymbolAsync()
     {
-        var host = MainViewModel.RoslynHost;
-        var document = host.GetDocument(DocumentId);
+        Roslyn.RoslynHost host = MainViewModel.RoslynHost;
+        Document? document = host.GetDocument(DocumentId);
         if (document == null || _getSelection == null)
         {
             return;
         }
 
-        var symbol = await RenameHelper.GetRenameSymbol(document, _getSelection().Start).ConfigureAwait(true);
-        if (symbol == null) return;
+        ISymbol? symbol = await RenameHelper.GetRenameSymbol(document, _getSelection().Start).ConfigureAwait(true);
+        if (symbol == null)
+            return;
 
-        var dialog = _serviceProvider.GetRequiredService<IRenameSymbolDialog>();
+        IRenameSymbolDialog dialog = _serviceProvider.GetRequiredService<IRenameSymbolDialog>();
         dialog.Initialize(symbol.Name);
         await dialog.ShowAsync().ConfigureAwait(true);
         if (dialog.ShouldRename)
         {
-            var newSolution = await Renamer.RenameSymbolAsync(document.Project.Solution, symbol, new SymbolRenameOptions(), dialog.SymbolName ?? string.Empty).ConfigureAwait(true);
-            var newDocument = newSolution.GetDocument(DocumentId);
+            Solution newSolution = await Renamer.RenameSymbolAsync(document.Project.Solution, symbol, new SymbolRenameOptions(), dialog.SymbolName ?? string.Empty).ConfigureAwait(true);
+            Document? newDocument = newSolution.GetDocument(DocumentId);
             // TODO: possibly update entire solution
             host.UpdateDocument(newDocument!);
         }
@@ -371,14 +372,14 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
     private enum CommentAction
     {
         Comment,
-        Uncomment
+        Uncomment,
     }
 
     private async Task CommentUncommentSelectionAsync(CommentAction action)
     {
         const string singleLineCommentString = "//";
 
-        var document = MainViewModel.RoslynHost.GetDocument(DocumentId);
+        Document? document = MainViewModel.RoslynHost.GetDocument(DocumentId);
         if (document == null)
         {
             return;
@@ -389,16 +390,16 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             return;
         }
 
-        var selection = _getSelection();
+        TextSpan selection = _getSelection();
 
-        var documentText = await document.GetTextAsync().ConfigureAwait(false);
-        var changes = new List<TextChange>();
-        var lines = documentText.Lines.SkipWhile(x => !x.Span.IntersectsWith(selection))
+        SourceText documentText = await document.GetTextAsync().ConfigureAwait(false);
+        List<TextChange> changes = [];
+        TextLine[] lines = documentText.Lines.SkipWhile(x => !x.Span.IntersectsWith(selection))
             .TakeWhile(x => x.Span.IntersectsWith(selection)).ToArray();
 
         if (action == CommentAction.Comment)
         {
-            foreach (var line in lines)
+            foreach (TextLine line in lines)
             {
                 if (!string.IsNullOrWhiteSpace(documentText.GetSubText(line.Span).ToString()))
                 {
@@ -408,9 +409,9 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
         }
         else if (action == CommentAction.Uncomment)
         {
-            foreach (var line in lines)
+            foreach (TextLine line in lines)
             {
-                var text = documentText.GetSubText(line.Span).ToString();
+                string text = documentText.GetSubText(line.Span).ToString();
                 if (text.TrimStart().StartsWith(singleLineCommentString, StringComparison.Ordinal))
                 {
                     changes.Add(new TextChange(new TextSpan(
@@ -420,7 +421,8 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             }
         }
 
-        if (changes.Count == 0) return;
+        if (changes.Count == 0)
+            return;
 
         MainViewModel.RoslynHost.UpdateDocument(document.WithText(documentText.WithChanges(changes)));
         if (action == CommentAction.Uncomment && MainViewModel.Settings.FormatDocumentOnComment)
@@ -431,8 +433,8 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
     private async Task FormatDocumentAsync()
     {
-        var document = MainViewModel.RoslynHost.GetDocument(DocumentId);
-        var formattedDocument = await Formatter.FormatAsync(document!).ConfigureAwait(false);
+        Document? document = MainViewModel.RoslynHost.GetDocument(DocumentId);
+        Document formattedDocument = await Formatter.FormatAsync(document!).ConfigureAwait(false);
         MainViewModel.RoslynHost.UpdateDocument(formattedDocument);
     }
 
@@ -497,13 +499,14 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
     public async Task AutoSaveAsync()
     {
-        if (!IsDirty) return;
+        if (!IsDirty)
+            return;
 
-        var document = Document;
+        DocumentViewModel? document = Document;
 
         if (document == null)
         {
-            var index = 1;
+            int index = 1;
             string path;
 
             do
@@ -534,16 +537,18 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
     public async Task<SaveResult> SaveAsync(bool promptSave)
     {
-        if (_isSaving) return SaveResult.Cancel;
-        if (!IsDirty && promptSave) return SaveResult.Save;
+        if (_isSaving)
+            return SaveResult.Cancel;
+        if (!IsDirty && promptSave)
+            return SaveResult.Save;
 
         _isSaving = true;
         try
         {
-            var result = SaveResult.Save;
+            SaveResult result = SaveResult.Save;
             if (Document == null || Document.IsAutoSaveOnly)
             {
-                var dialog = _serviceProvider.GetRequiredService<ISaveDocumentDialog>();
+                ISaveDocumentDialog dialog = _serviceProvider.GetRequiredService<ISaveDocumentDialog>();
                 dialog.ShowDoNotSave = promptSave;
                 dialog.AllowNameEdit = true;
                 dialog.FilePathFactory = name => DocumentViewModel.GetDocumentPathFromName(WorkingDirectory, name);
@@ -558,7 +563,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             }
             else if (promptSave)
             {
-                var dialog = _serviceProvider.GetRequiredService<ISaveDocumentDialog>();
+                ISaveDocumentDialog dialog = _serviceProvider.GetRequiredService<ISaveDocumentDialog>();
                 dialog.ShowDoNotSave = true;
                 dialog.DocumentName = Document.Name;
                 await dialog.ShowAsync().ConfigureAwait(true);
@@ -586,7 +591,8 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
     private async Task SaveDocumentAsync(string path)
     {
-        if (!_isInitialized) return;
+        if (!_isInitialized)
+            return;
 
         var document = MainViewModel.RoslynHost.GetDocument(DocumentId);
         if (document == null)
@@ -594,12 +600,12 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             return;
         }
 
-        var text = await document.GetTextAsync().ConfigureAwait(false);
+        SourceText text = await document.GetTextAsync().ConfigureAwait(false);
 
-        using var writer = File.CreateText(path);
+        using StreamWriter writer = File.CreateText(path);
         for (int lineIndex = 0; lineIndex < text.Lines.Count - 1; ++lineIndex)
         {
-            var lineText = text.Lines[lineIndex].ToString();
+            string lineText = text.Lines[lineIndex].ToString();
             await writer.WriteLineAsync(lineText).ConfigureAwait(false);
         }
 
@@ -671,11 +677,11 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
 
         ReportedProgress = null;
 
-        var cancellationToken = ResetCancellation();
+        CancellationToken cancellationToken = ResetCancellation();
 
         await MainViewModel.AutoSaveOpenDocumentsAsync().ConfigureAwait(true);
 
-        var documentPath = IsDirty ? Document?.GetAutoSavePath() : Document?.Path;
+        string? documentPath = IsDirty ? Document?.GetAutoSavePath() : Document?.Path;
         if (documentPath is null)
         {
             return;
@@ -704,9 +710,9 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
         }
         catch (CompilationErrorException ex)
         {
-            foreach (var diagnostic in ex.Diagnostics)
+            foreach (Diagnostic diagnostic in ex.Diagnostics)
             {
-                var startLinePosition = diagnostic.Location.GetLineSpan().StartLinePosition;
+                LinePosition startLinePosition = diagnostic.Location.GetLineSpan().StartLinePosition;
                 AddResult(CompilationErrorResultObject.Create(diagnostic.Severity.ToString(), diagnostic.Id, diagnostic.GetMessage(CultureInfo.InvariantCulture), startLinePosition.Line, startLinePosition.Character));
             }
         }
@@ -745,23 +751,6 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             _ = _executionHost.UpdateReferencesAsync(alwaysRestore);
     }
 
-    /*private async Task<string> GetCodeAsync(CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(SelectedText))
-        {
-            return SelectedText;
-        }
-
-        var document = MainViewModel.RoslynHost.GetDocument(DocumentId);
-        if (document == null)
-        {
-            return string.Empty;
-        }
-
-        return (await document.GetTextAsync(cancellationToken)
-            .ConfigureAwait(false)).ToString();
-    }*/
-
     private CancellationToken ResetCancellation()
     {
         if (_runCts != null)
@@ -770,7 +759,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             _runCts.Dispose();
         }
 
-        var runCts = new CancellationTokenSource();
+        CancellationTokenSource runCts = new();
         _runCts = runCts;
         return runCts.Token;
     }
@@ -782,7 +771,7 @@ public class OpenDocumentViewModel : NotificationObject, IDisposable
             return string.Empty;
         }
 
-        using var fileStream = File.OpenText(Document.Path);
+        using StreamReader fileStream = File.OpenText(Document.Path);
         return await fileStream.ReadToEndAsync().ConfigureAwait(false);
     }
 

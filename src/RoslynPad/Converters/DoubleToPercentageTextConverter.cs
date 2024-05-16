@@ -7,7 +7,7 @@ public class DoubleToPercentageTextConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        var percent = value as double? ?? 0;
+        double percent = value as double? ?? 0;
         if (percent <= 0) percent = 0;
         if (percent >= 1) percent = 1;
 

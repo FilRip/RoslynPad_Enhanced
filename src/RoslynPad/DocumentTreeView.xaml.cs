@@ -43,7 +43,7 @@ public partial class DocumentTreeView
 
     private void OpenDocument(object source)
     {
-        var documentViewModel = (DocumentViewModel)((FrameworkElement)source).DataContext;
+        DocumentViewModel documentViewModel = (DocumentViewModel)((FrameworkElement)source).DataContext;
         _viewModel?.OpenDocument(documentViewModel);
     }
 
@@ -90,11 +90,11 @@ internal sealed class FilterCollectionViewConverter : IValueConverter
     {
         if (value is IList list)
         {
-            var collectionView = new ListCollectionView(list)
+            ListCollectionView collectionView = new(list)
             {
                 IsLiveFiltering = true,
                 LiveFilteringProperties = { FilterProperty },
-                Filter = Filter
+                Filter = Filter,
             };
 
             return collectionView;

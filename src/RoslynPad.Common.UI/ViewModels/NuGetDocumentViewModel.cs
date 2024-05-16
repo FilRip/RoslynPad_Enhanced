@@ -98,8 +98,8 @@ public sealed class NuGetDocumentViewModel : NotificationObject
         }
 
         _searchCts?.Cancel();
-        var searchCts = new CancellationTokenSource();
-        var cancellationToken = searchCts.Token;
+        CancellationTokenSource searchCts = new();
+        CancellationToken cancellationToken = searchCts.Token;
         _searchCts = searchCts;
 
         _ = Task.Run(() => PerformSearchAsync(SearchTerm, cancellationToken), cancellationToken);
@@ -119,14 +119,14 @@ public sealed class NuGetDocumentViewModel : NotificationObject
         {
             try
             {
-                var packages = await Task.Run(() =>
+                IReadOnlyList<PackageData> packages = await Task.Run(() =>
                         _nuGetViewModel.GetPackagesAsync(searchTerm, includePrerelease: Prerelease,
                             exactMatch: ExactMatch, cancellationToken: cancellationToken), cancellationToken)
                     .ConfigureAwait(true);
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                foreach (var package in packages)
+                foreach (PackageData package in packages)
                 {
                     package.InstallPackageCommand = InstallPackageCommand;
                 }

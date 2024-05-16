@@ -9,8 +9,8 @@ public class DocumentCollectionViewConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        var vm = (DocumentViewModel)value;
-        var childrenView = new ListCollectionView(vm.Children);
+        DocumentViewModel vm = (DocumentViewModel)value;
+        ListCollectionView childrenView = new(vm.Children);
         childrenView.LiveFilteringProperties.Add(nameof(DocumentViewModel.IsSearchMatch));
         childrenView.IsLiveFiltering = true;
         childrenView.Filter = o => ((DocumentViewModel)o).IsSearchMatch;

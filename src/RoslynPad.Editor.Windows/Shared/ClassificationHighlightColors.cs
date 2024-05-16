@@ -68,7 +68,7 @@ public class ClassificationHighlightColors : IClassificationHighlightColors
 
     public HighlightingColor GetBrush(string classificationTypeName)
     {
-        GetOrCreateMap().TryGetValue(classificationTypeName, out var brush);
+        GetOrCreateMap().TryGetValue(classificationTypeName, out HighlightingColor? brush);
         return brush ?? DefaultBrush.AsFrozen();
     }
 }

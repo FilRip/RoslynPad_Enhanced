@@ -49,7 +49,7 @@ internal sealed partial class CodeSnippet(string name, string description, strin
     public static Snippet CreateAvalonEditSnippet(string snippetText)
     {
         ArgumentNullException.ThrowIfNull(snippetText);
-        var replaceableElements = new Dictionary<string, SnippetReplaceableTextElement>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, SnippetReplaceableTextElement> replaceableElements = new(StringComparer.OrdinalIgnoreCase);
         foreach (var match in s_pattern.Matches(snippetText).OfType<Match>())
         {
             var val = match.Groups[1].Value;

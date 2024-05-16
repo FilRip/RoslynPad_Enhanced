@@ -40,7 +40,7 @@ public class ResultObject : IResultObject, IResultWithLineNumber
 
     public override string ToString()
     {
-        var builder = new StringBuilder();
+        StringBuilder builder = new();
         BuildStringRecursive(builder, 0);
         return builder.ToString();
     }
@@ -52,7 +52,7 @@ public class ResultObject : IResultObject, IResultWithLineNumber
 
     private void BuildStringRecursive(StringBuilder builder, int level)
     {
-        for (var i = 0; i < level; i++)
+        for (int i = 0; i < level; i++)
         {
             builder.Append("  ");
         }
@@ -65,7 +65,7 @@ public class ResultObject : IResultObject, IResultWithLineNumber
         builder.AppendLine();
         if (Children != null)
         {
-            foreach (var child in Children)
+            foreach (ResultObject child in Children)
             {
                 child.BuildStringRecursive(builder, level + 1);
             }
@@ -78,10 +78,6 @@ public class ExceptionResultObject : ResultObject
     [JsonPropertyName("m")]
     public string? Message { get; set; }
 }
-
-/*public class InputReadRequest
-{
-}*/
 
 public class ProgressResultObject
 {

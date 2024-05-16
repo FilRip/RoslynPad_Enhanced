@@ -113,14 +113,14 @@ public abstract class MainViewModel : NotificationObject, IDisposable
     {
         UseSystemTheme = Settings.CustomThemePath is null && Settings.BuiltInTheme == BuiltInTheme.System;
 
-        var theme = Settings.CustomThemePath is null ? GetBuiltinThemePath(Settings.BuiltInTheme) : (path: Settings.CustomThemePath, type: Settings.CustomThemeType.GetValueOrDefault());
+        (string? path, ThemeType type) theme = Settings.CustomThemePath is null ? GetBuiltinThemePath(Settings.BuiltInTheme) : (path: Settings.CustomThemePath, type: Settings.CustomThemeType.GetValueOrDefault());
         await LoadThemeAsync(theme.path, theme.type);
 
         if (UseSystemTheme)
         {
             ListenToSystemThemeChanges(async () =>
             {
-                var (path, type) = GetBuiltinThemePath(BuiltInTheme.System);
+                (string? path, ThemeType type) = GetBuiltinThemePath(BuiltInTheme.System);
                 await LoadThemeAsync(path, type);
             });
         }
@@ -213,7 +213,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
             if (File.Exists(filePath))
             {
-                var document = DocumentViewModel.FromPath(filePath);
+                DocumentViewModel document = DocumentViewModel.FromPath(filePath);
                 OpenDocument(document);
             }
         }
@@ -221,7 +221,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     private async Task OpenAutoSavedDocumentsAsync()
     {
-        var documents = await Task.Run(() => LoadAutoSavedDocuments(DocumentRoot.Path)).ConfigureAwait(true);
+        IEnumerable<OpenDocumentViewModel> documents = await Task.Run(() => LoadAutoSavedDocuments(DocumentRoot.Path)).ConfigureAwait(true);
 
         OpenDocuments.AddRange(documents);
 
@@ -245,7 +245,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     private OpenDocumentViewModel GetOpenDocumentViewModel(DocumentViewModel? documentViewModel = null)
     {
-        var d = _serviceProvider.GetRequiredService<OpenDocumentViewModel>();
+        OpenDocumentViewModel d = _serviceProvider.GetRequiredService<OpenDocumentViewModel>();
         d.SetDocument(documentViewModel);
         return d;
     }
@@ -256,7 +256,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
     {
         get
         {
-            var currentVersion = s_currentVersion switch
+            string currentVersion = s_currentVersion switch
             {
                 { Minor: <= 0, Build: <= 0 } => s_currentVersion.Major.ToString(CultureInfo.InvariantCulture),
                 { Build: <= 0 } => $"{s_currentVersion.Major}.{s_currentVersion.Minor}",
@@ -283,14 +283,14 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     private bool HasCachedUpdate()
     {
-        return Version.TryParse(Settings.LatestVersion, out var latestVersion) &&
+        return Version.TryParse(Settings.LatestVersion, out Version? latestVersion) &&
                latestVersion > s_currentVersion;
     }
 
     private async Task CheckForUpdatesAsync()
     {
         string latestVersionString;
-        using (var client = new System.Net.Http.HttpClient())
+        using (HttpClient client = new())
         {
             try
             {
@@ -302,7 +302,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
             }
         }
 
-        if (Version.TryParse(latestVersionString, out var latestVersion))
+        if (Version.TryParse(latestVersionString, out Version? latestVersion))
         {
             if (latestVersion > s_currentVersion)
             {
@@ -316,14 +316,14 @@ public abstract class MainViewModel : NotificationObject, IDisposable
     private DocumentViewModel CreateDocumentRoot()
     {
         _documentWatcher?.Dispose();
-        var root = DocumentViewModel.CreateRoot(Settings.EffectiveDocumentPath);
+        DocumentViewModel root = DocumentViewModel.CreateRoot(Settings.EffectiveDocumentPath);
         _documentWatcher = new DocumentWatcher(_documentFileWatcher, root);
         return root;
     }
 
     public void EditUserDocumentPath()
     {
-        var dialog = _serviceProvider.GetRequiredService<IFolderBrowserDialog>();
+        IFolderBrowserDialog dialog = _serviceProvider.GetRequiredService<IFolderBrowserDialog>();
         dialog.ShowEditBox = true;
         dialog.SelectedPath = Settings.EffectiveDocumentPath;
 
@@ -395,7 +395,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
         if (document.IsFolder)
             return;
 
-        var openDocument = OpenDocuments.FirstOrDefault(x => x.Document?.Path != null && string.Equals(x.Document.Path, document.Path, StringComparison.Ordinal));
+        OpenDocumentViewModel? openDocument = OpenDocuments.FirstOrDefault(x => x.Document?.Path != null && string.Equals(x.Document.Path, document.Path, StringComparison.Ordinal));
         if (openDocument == null)
         {
             openDocument = GetOpenDocumentViewModel(document);
@@ -410,20 +410,20 @@ public abstract class MainViewModel : NotificationObject, IDisposable
         if (!IsInitialized)
             return;
 
-        var dialog = _serviceProvider.GetRequiredService<IOpenFileDialog>();
+        IOpenFileDialog dialog = _serviceProvider.GetRequiredService<IOpenFileDialog>();
         dialog.SetFilter(new FileDialogFilter("C# Files", "cs", "csx"));
-        var fileNames = await dialog.ShowAsync().ConfigureAwait(true);
+        string[]? fileNames = await dialog.ShowAsync().ConfigureAwait(true);
         if (fileNames == null)
         {
             return;
         }
 
         // make sure we use the normalized path, in case the user used the wrong capitalization on Windows
-        var filePath = IOUtilities.NormalizeFilePath(fileNames[0]);
-        var document = DocumentViewModel.FromPath(filePath);
+        string filePath = IOUtilities.NormalizeFilePath(fileNames[0]);
+        DocumentViewModel document = DocumentViewModel.FromPath(filePath);
         if (!document.IsAutoSave)
         {
-            var autoSavePath = document.GetAutoSavePath();
+            string autoSavePath = document.GetAutoSavePath();
             if (File.Exists(autoSavePath))
             {
                 document = DocumentViewModel.FromPath(autoSavePath);
@@ -435,7 +435,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     public void CreateNewDocument(SourceCodeKind kind = SourceCodeKind.Regular)
     {
-        var openDocument = GetOpenDocumentViewModel();
+        OpenDocumentViewModel openDocument = GetOpenDocumentViewModel();
         openDocument.SourceCodeKind = kind;
         OpenDocuments.Add(openDocument);
         CurrentOpenDocument = openDocument;
@@ -448,7 +448,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
             return;
         }
 
-        var result = await document.SaveAsync(promptSave: true).ConfigureAwait(true);
+        SaveResult result = await document.SaveAsync(promptSave: true).ConfigureAwait(true);
         if (result == SaveResult.Cancel)
         {
             return;
@@ -465,7 +465,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     public async Task AutoSaveOpenDocumentsAsync()
     {
-        foreach (var document in OpenDocuments)
+        foreach (OpenDocumentViewModel document in OpenDocuments)
         {
             await document.AutoSaveAsync().ConfigureAwait(false);
         }
@@ -473,7 +473,8 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
     private async Task CloseCurrentDocumentAsync()
     {
-        if (CurrentOpenDocument == null) return;
+        if (CurrentOpenDocument == null)
+            return;
         await CloseDocumentAsync(CurrentOpenDocument).ConfigureAwait(false);
         if (!OpenDocuments.Any())
         {
@@ -484,8 +485,8 @@ public abstract class MainViewModel : NotificationObject, IDisposable
     public async Task CloseAllDocumentsAsync()
     {
         // can't modify the collection while enumerating it.
-        var openDocs = new ObservableCollection<OpenDocumentViewModel>(OpenDocuments);
-        foreach (var document in openDocs)
+        ObservableCollection<OpenDocumentViewModel> openDocs = new(OpenDocuments);
+        foreach (OpenDocumentViewModel document in openDocs)
         {
             await CloseDocumentAsync(document).ConfigureAwait(false);
         }
@@ -501,8 +502,8 @@ public abstract class MainViewModel : NotificationObject, IDisposable
     {
         get
         {
-            var exception = _telemetryProvider.LastError;
-            var aggregateException = exception as AggregateException;
+            Exception? exception = _telemetryProvider.LastError;
+            AggregateException? aggregateException = exception as AggregateException;
             return aggregateException?.Flatten() ?? exception;
         }
     }
@@ -595,7 +596,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
         {
             IsWithinSearchResults = true;
 
-            foreach (var document in GetAllDocumentsForSearch(DocumentRoot))
+            foreach (DocumentViewModel document in GetAllDocumentsForSearch(DocumentRoot))
             {
                 document.IsSearchMatch = SearchDocumentName(document);
             }
@@ -616,7 +617,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
         IsWithinSearchResults = true;
 
-        foreach (var document in GetAllDocumentsForSearch(DocumentRoot))
+        foreach (DocumentViewModel document in GetAllDocumentsForSearch(DocumentRoot))
         {
             if (SearchDocumentName(document))
             {
@@ -637,7 +638,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
         {
             try
             {
-                var regex = new Regex(SearchText, RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5));
+                Regex regex = new(SearchText, RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5));
 
                 ClearError(nameof(SearchText), "Regex");
 
@@ -658,7 +659,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
             if (regex != null)
             {
-                var documentText = await IOUtilities.ReadAllTextAsync(document.Path).ConfigureAwait(false);
+                string documentText = await IOUtilities.ReadAllTextAsync(document.Path).ConfigureAwait(false);
                 try
                 {
                     document.IsSearchMatch = regex.IsMatch(documentText);
@@ -689,7 +690,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
             yield break;
         }
 
-        foreach (var document in children)
+        foreach (DocumentViewModel document in children)
         {
             if (document.IsFolder)
             {
@@ -760,7 +761,7 @@ public abstract class MainViewModel : NotificationObject, IDisposable
         IsWithinSearchResults = false;
         ClearErrors(nameof(SearchText));
 
-        foreach (var document in GetAllDocumentsForSearch(DocumentRoot))
+        foreach (DocumentViewModel document in GetAllDocumentsForSearch(DocumentRoot))
         {
             document.IsSearchMatch = true;
         }
@@ -784,22 +785,22 @@ public abstract class MainViewModel : NotificationObject, IDisposable
 
         private void OnDocumentFileChanged(DocumentFileChanged data)
         {
-            var pathParts = data.Path[_documentRoot.Path.Length..]
+            string[] pathParts = data.Path[_documentRoot.Path.Length..]
                 .Split(s_pathSeparators, StringSplitOptions.RemoveEmptyEntries);
 
             DocumentViewModel? current = _documentRoot;
 
-            for (var index = 0; index < pathParts.Length; index++)
+            for (int index = 0; index < pathParts.Length; index++)
             {
                 if (!current.IsChildrenInitialized)
                 {
                     break;
                 }
 
-                var part = pathParts[index];
-                var isLast = index == pathParts.Length - 1;
+                string part = pathParts[index];
+                bool isLast = index == pathParts.Length - 1;
 
-                var parent = current;
+                DocumentViewModel parent = current;
                 current = current.InternalChildren[part];
 
                 // the current part is not in the tree
@@ -807,11 +808,11 @@ public abstract class MainViewModel : NotificationObject, IDisposable
                 {
                     if (data.Type != DocumentFileChangeType.Deleted)
                     {
-                        var currentPath = isLast && data.Type == DocumentFileChangeType.Renamed
+                        string? currentPath = isLast && data.Type == DocumentFileChangeType.Renamed
                             ? data.NewPath
                             : Path.Combine(_documentRoot.Path, Path.Combine(pathParts.Take(index + 1).ToArray()));
 
-                        var newDocument = DocumentViewModel.FromPath(currentPath!);
+                        DocumentViewModel newDocument = DocumentViewModel.FromPath(currentPath!);
                         if (!newDocument.IsAutoSave &&
                             IsRelevantDocument(newDocument))
                         {

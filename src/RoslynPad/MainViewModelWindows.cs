@@ -18,7 +18,7 @@ public class MainViewModelWindows(IServiceProvider serviceProvider, ITelemetryPr
 
     protected override bool IsSystemDarkTheme()
     {
-        using var personalizeKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+        using RegistryKey? personalizeKey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
         return personalizeKey?.GetValue("AppsUseLightTheme") as int? == 0;
     }
 

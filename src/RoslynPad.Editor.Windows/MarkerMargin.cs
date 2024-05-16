@@ -11,7 +11,7 @@ public class MarkerMargin : AbstractMargin
 
     private Image CreateMarker()
     {
-        var marker = new Image();
+        Image marker = new();
         marker.MouseDown += (o, e) => { e.Handled = true; MarkerPointerDown?.Invoke(o, e); };
         marker.SetBinding(Image.SourceProperty, new Binding { Source = this, Path = new PropertyPath(nameof(MarkerImage), null) });
         marker.SetBinding(ToolTipProperty, new Binding { Source = this, Path = new PropertyPath(nameof(Message), null) });
@@ -94,13 +94,13 @@ public class MarkerMargin : AbstractMargin
 
     protected override Size ArrangeOverride(Size finalSize)
     {
-        var lineNumber = LineNumber;
-        var textView = TextView;
+        int? lineNumber = LineNumber;
+        TextView textView = TextView;
 
         if (lineNumber != null && textView?.GetVisualLine(lineNumber.Value) is VisualLine line)
         {
             Marker.Visibility = Visibility.Visible;
-            var visualYPosition = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.TextTop);
+            double visualYPosition = line.GetTextLineVisualYPosition(line.TextLines[0], VisualYPosition.TextTop);
             Marker.Arrange(new Rect(
                 new Point(0, visualYPosition - textView.VerticalOffset),
                 new Size(finalSize.Width, finalSize.Width)));

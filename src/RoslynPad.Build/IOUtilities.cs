@@ -47,8 +47,8 @@ internal static class IOUtilities
 
     public static string NormalizeFilePath(string filename)
     {
-        var fileInfo = new FileInfo(filename);
-        var directoryInfo = fileInfo.Directory ?? throw new ArgumentException("Invalid path", nameof(filename));
+        FileInfo fileInfo = new(filename);
+        DirectoryInfo directoryInfo = fileInfo.Directory ?? throw new ArgumentException("Invalid path", nameof(filename));
 
         return Path.Combine(NormalizeDirectory(directoryInfo),
             directoryInfo.GetFiles(fileInfo.Name)[0].Name);
@@ -56,7 +56,7 @@ internal static class IOUtilities
 
     private static string NormalizeDirectory(DirectoryInfo dirInfo)
     {
-        var parentDirInfo = dirInfo.Parent;
+        DirectoryInfo parentDirInfo = dirInfo.Parent;
         if (parentDirInfo == null)
         {
             return dirInfo.Name;
@@ -75,7 +75,7 @@ internal static class IOUtilities
 
     public static IEnumerable<string> ReadLines(string path)
     {
-        var lines = PerformIO(() => File.ReadLines(path), []);
+        IEnumerable<string> lines = PerformIO(() => File.ReadLines(path), []);
         using var enumerator = lines.GetEnumerator();
         while (PerformIO(enumerator.MoveNext))
         {
@@ -94,7 +94,7 @@ internal static class IOUtilities
 
     public static IEnumerable<string> EnumerateFiles(string path, string searchPattern = "*")
     {
-        var files = PerformIO(() => Directory.EnumerateFiles(path, searchPattern),
+        IEnumerable<string> files = PerformIO(() => Directory.EnumerateFiles(path, searchPattern),
             []);
 
         using var enumerator = files.GetEnumerator();
@@ -106,10 +106,10 @@ internal static class IOUtilities
 
     public static IEnumerable<string> EnumerateDirectories(string path, string searchPattern = "*")
     {
-        var directories = PerformIO(() => Directory.EnumerateDirectories(path, searchPattern),
+        IEnumerable<string> directories = PerformIO(() => Directory.EnumerateDirectories(path, searchPattern),
             []);
 
-        using var enumerator = directories.GetEnumerator();
+        using IEnumerator<string> enumerator = directories.GetEnumerator();
         while (PerformIO(enumerator.MoveNext))
         {
             yield return enumerator.Current;
@@ -118,9 +118,9 @@ internal static class IOUtilities
 
     public static void DirectoryCopy(string source, string destination, bool overwrite, bool recursive = true)
     {
-        foreach (var file in EnumerateFiles(source))
+        foreach (string file in EnumerateFiles(source))
         {
-            var destinationFile = Path.Combine(destination, Path.GetFileName(file));
+            string destinationFile = Path.Combine(destination, Path.GetFileName(file));
             FileCopy(file, destinationFile, overwrite);
         }
 
@@ -129,9 +129,9 @@ internal static class IOUtilities
             return;
         }
 
-        foreach (var directory in EnumerateDirectories(source))
+        foreach (string directory in EnumerateDirectories(source))
         {
-            var destinationDirectory = Path.Combine(destination, Path.GetFileName(directory));
+            string destinationDirectory = Path.Combine(destination, Path.GetFileName(directory));
             Directory.CreateDirectory(destinationDirectory);
             DirectoryCopy(directory, destinationDirectory, overwrite);
         }
@@ -147,8 +147,8 @@ internal static class IOUtilities
         }
         catch (IOException ex) when (ex.HResult == ERROR_ENCRYPTION_FAILED)
         {
-            using var read = File.OpenRead(source);
-            using var write = new FileStream(destination, overwrite ? FileMode.Create : FileMode.CreateNew);
+            using FileStream read = File.OpenRead(source);
+            using FileStream write = new(destination, overwrite ? FileMode.Create : FileMode.CreateNew);
             read.CopyTo(write);
         }
     }

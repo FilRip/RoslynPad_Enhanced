@@ -14,11 +14,11 @@ public partial class ILViewer
     static ILViewer()
     {
         HighlightingManager.Instance.RegisterHighlighting(
-            "ILAsm", new[] { ".il" },
+            "ILAsm", [".il"],
             () =>
             {
-                using var stream = typeof(ILViewer).Assembly.GetManifestResourceStream(typeof(ILViewer), "ILAsm-Mode.xshd")!;
-                using var reader = new XmlTextReader(stream);
+                using System.IO.Stream? stream = typeof(ILViewer).Assembly.GetManifestResourceStream(typeof(ILViewer), "ILAsm-Mode.xshd")!;
+                using XmlTextReader reader = new(stream);
                 return HighlightingLoader.Load(reader, HighlightingManager.Instance);
             });
     }
@@ -30,12 +30,15 @@ public partial class ILViewer
         TextEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("ILAsm");
         TextEditor.Document.FileName = "dasm.il";
         SearchPanel.Install(TextEditor);
-        TextEditor.ContextMenu = new ContextMenu
+        TextEditor.ContextMenu = new ContextMenu()
         {
             Items =
             {
-                new MenuItem { Command = ApplicationCommands.Copy }
-            }
+                new MenuItem()
+                {
+                    Command = ApplicationCommands.Copy,
+                },
+            },
         };
     }
 

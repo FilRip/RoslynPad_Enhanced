@@ -27,7 +27,7 @@ public partial class DocumentViewModel : NotificationObject
         Path = rootPath;
         IsFolder = isFolder;
 
-        var nameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(Name);
+        string nameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(Name);
         IsAutoSave = nameWithoutExtension.EndsWith(AutoSaveSuffix, StringComparison.OrdinalIgnoreCase);
         if (IsAutoSave)
         {
@@ -49,7 +49,7 @@ public partial class DocumentViewModel : NotificationObject
         [MemberNotNull(nameof(_path))]
         private set
         {
-            var oldPath = _path;
+            string? oldPath = _path;
             if (SetProperty(ref _path, value))
             {
                 Name = System.IO.Path.GetFileName(value);
@@ -68,7 +68,7 @@ public partial class DocumentViewModel : NotificationObject
             return;
         }
 
-        foreach (var child in InternalChildren)
+        foreach (DocumentViewModel child in InternalChildren)
         {
             child.Path = child.Path.Replace(oldPath, newPath);
         }
@@ -110,7 +110,7 @@ public partial class DocumentViewModel : NotificationObject
     {
         if (!IsFolder) throw new InvalidOperationException("Parent must be a folder");
 
-        var document = new DocumentViewModel(GetDocumentPathFromName(Path, documentName), false);
+        DocumentViewModel document = new(GetDocumentPathFromName(Path, documentName), false);
         AddChild(document);
         return document;
     }
@@ -126,7 +126,7 @@ public partial class DocumentViewModel : NotificationObject
         }
         else
         {
-            var autoSavePath = GetAutoSavePath();
+            string autoSavePath = GetAutoSavePath();
             if (File.Exists(autoSavePath))
             {
                 IOUtilities.PerformIO(() => File.Delete(autoSavePath));
@@ -178,14 +178,14 @@ public partial class DocumentViewModel : NotificationObject
 
     private DocumentCollection ReadChildren()
     {
-        var directories =
+        IOrderedEnumerable<DocumentViewModel> directories =
             IOUtilities.EnumerateDirectories(Path)
             .Select(directory => new DocumentViewModel(directory, isFolder: true))
             .OrderBy(directory => directory.OrderByName);
 
         var files = Enumerable.Empty<DocumentViewModel>();
 
-        foreach (var extension in RelevantFileExtensions)
+        foreach (string extension in RelevantFileExtensions)
         {
             files = files.Concat(IOUtilities.EnumerateFiles(Path, "*" + extension)
                 .Select(file => new DocumentViewModel(file, isFolder: false))
@@ -200,7 +200,7 @@ public partial class DocumentViewModel : NotificationObject
 
     internal void AddChild(DocumentViewModel documentViewModel)
     {
-        var children = InternalChildren;
+        DocumentCollection? children = InternalChildren;
         if (children is null)
         {
             return;

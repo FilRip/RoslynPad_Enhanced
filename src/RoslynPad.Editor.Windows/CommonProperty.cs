@@ -7,7 +7,7 @@ public static class CommonProperty
         Action<TOwner, CommonPropertyChangedArgs<TValue>>? onChanged = null)
         where TOwner : DependencyObject
     {
-        var metadataOptions = FrameworkPropertyMetadataOptions.None;
+        FrameworkPropertyMetadataOptions metadataOptions = FrameworkPropertyMetadataOptions.None;
 
         if (options.Has(PropertyOptions.AffectsRender))
         {
@@ -34,11 +34,11 @@ public static class CommonProperty
             metadataOptions |= FrameworkPropertyMetadataOptions.BindsTwoWayByDefault;
         }
 
-        var changedCallback = onChanged != null
+        PropertyChangedCallback? changedCallback = onChanged != null
             ? new PropertyChangedCallback((o, e) => onChanged((TOwner)o, new CommonPropertyChangedArgs<TValue>((TValue)e.OldValue, (TValue)e.NewValue)))
             : null;
-        var metadata = new FrameworkPropertyMetadata(defaultValue, metadataOptions, changedCallback);
-        var property = DependencyProperty.Register(name, typeof(TValue), typeof(TOwner), metadata);
+        FrameworkPropertyMetadata metadata = new(defaultValue, metadataOptions, changedCallback);
+        DependencyProperty property = DependencyProperty.Register(name, typeof(TValue), typeof(TOwner), metadata);
 
         return new StyledProperty<TValue>(property);
     }

@@ -1,4 +1,6 @@
-﻿using AvalonDock.Themes.VS2013.Themes;
+﻿using System.Windows.Media;
+
+using AvalonDock.Themes.VS2013.Themes;
 
 using RoslynPad.Themes;
 
@@ -15,7 +17,7 @@ public partial class DockThemeDictionary : ThemeDictionaryBase
         this[ResourceKeys.Background] = CreateBrush(theme, "background");
         this[ResourceKeys.DocumentWellTabSelectedActiveBackground] = CreateBrush(theme, "tab.border");
         this[ResourceKeys.DocumentWellTabSelectedInactiveBackground] = CreateBrush(theme, "tab.inactiveBackground");
-        var focusBorder = CreateBrush(theme, "focusBorder");
+        SolidColorBrush? focusBorder = CreateBrush(theme, "focusBorder");
         this[ResourceKeys.ToolWindowCaptionActiveBackground] = focusBorder;
         this[ResourceKeys.AutoHideTabHoveredBorder] = focusBorder;
         this[ResourceKeys.AutoHideTabHoveredText] = focusBorder;

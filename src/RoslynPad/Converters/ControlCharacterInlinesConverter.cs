@@ -24,8 +24,8 @@ public class ControlCharacterInlinesConverter : IValueConverter
 
         IEnumerable<Inline> Get(string s)
         {
-            var lastIndex = 0;
-            foreach (var index in StringSearch.GetIndices(s, CharSearchValues.ControlChars))
+            int lastIndex = 0;
+            foreach (int index in StringSearch.GetIndices(s, CharSearchValues.ControlChars))
             {
                 if (lastIndex != index)
                 {

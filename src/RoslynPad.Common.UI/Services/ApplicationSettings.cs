@@ -90,7 +90,7 @@ internal class ApplicationSettings : IApplicationSettings
 
         try
         {
-            var json = File.ReadAllText(path);
+            string json = File.ReadAllText(path);
             _values = JsonSerializer.Deserialize<SerializableValues>(json, s_serializerOptions) ?? new SerializableValues();
             InitializeValues();
         }
@@ -107,7 +107,7 @@ internal class ApplicationSettings : IApplicationSettings
 
         try
         {
-            using var stream = File.Create(_path);
+            using FileStream stream = File.Create(_path);
             JsonSerializer.Serialize(stream, _values, s_serializerOptions);
         }
         catch (Exception e)
@@ -272,7 +272,7 @@ internal class ApplicationSettings : IApplicationSettings
             set => SetProperty(ref _builtInTheme, value);
         }
 
-        [JsonIgnore]
+        [JsonIgnore()]
         public string EffectiveDocumentPath
         {
             get
@@ -280,7 +280,7 @@ internal class ApplicationSettings : IApplicationSettings
                 if (_effectiveDocumentPath == null)
                 {
 
-                    var userDefinedPath = DocumentPath;
+                    string? userDefinedPath = DocumentPath;
                     _effectiveDocumentPath = !string.IsNullOrEmpty(userDefinedPath) && Directory.Exists(userDefinedPath)
                         ? userDefinedPath!
                         : Settings?.GetDefaultDocumentPath() ?? string.Empty;
@@ -290,7 +290,7 @@ internal class ApplicationSettings : IApplicationSettings
             }
         }
 
-        [JsonIgnore]
+        [JsonIgnore()]
         public ApplicationSettings? Settings { get; set; }
     }
 }

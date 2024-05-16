@@ -147,7 +147,7 @@ public class SearchReplacePanel : Control
         // if results are found by the next run, the message will be hidden inside DoSearch ...
         if (_renderer.CurrentResults.Count != 0)
             _messageView.IsOpen = false;
-        var searchPattern = SearchPattern ?? "";
+        string searchPattern = SearchPattern ?? "";
         _strategy = SearchStrategyFactory.Create(searchPattern, !MatchCase, WholeWords, UseRegex ? SearchMode.RegEx : SearchMode.Normal);
         OnSearchOptionsChanged(new SearchOptionsChangedEventArgs(searchPattern, MatchCase, UseRegex, WholeWords));
         DoSearch(true);
@@ -231,7 +231,7 @@ public class SearchReplacePanel : Control
     {
         if (_searchTextBox == null)
             return;
-        var be = _searchTextBox.GetBindingExpression(TextBox.TextProperty);
+        BindingExpression be = _searchTextBox.GetBindingExpression(TextBox.TextProperty);
         try
         {
             Validation.ClearInvalid(be);
@@ -239,7 +239,7 @@ public class SearchReplacePanel : Control
         }
         catch (SearchPatternException ex)
         {
-            var ve = new ValidationError(be.ParentBinding.ValidationRules[0], be, ex.Message, ex);
+            ValidationError ve = new(be.ParentBinding.ValidationRules[0], be, ex.Message, ex);
             Validation.MarkInvalid(be, ve);
         }
     }
@@ -260,8 +260,8 @@ public class SearchReplacePanel : Control
     /// </summary>
     public void FindNext()
     {
-        var selectedResult = GetSelectedResult();
-        var result = _renderer.CurrentResults.Find(r => r.Offset >= _textArea.Caret.Offset && r != selectedResult) ??
+        ISearchResult? selectedResult = GetSelectedResult();
+        ISearchResult? result = _renderer.CurrentResults.Find(r => r.Offset >= _textArea.Caret.Offset && r != selectedResult) ??
                      _renderer.CurrentResults.FirstOrDefault();
 
         if (result != null)
@@ -275,8 +275,8 @@ public class SearchReplacePanel : Control
     /// </summary>
     public void FindPrevious()
     {
-        var selectedResult = GetSelectedResult();
-        var result = _renderer.CurrentResults.LastOrDefault(r => r.EndOffset <= _textArea.Caret.Offset && r != selectedResult) ??
+        ISearchResult? selectedResult = GetSelectedResult();
+        ISearchResult? result = _renderer.CurrentResults.LastOrDefault(r => r.EndOffset <= _textArea.Caret.Offset && r != selectedResult) ??
                      _renderer.CurrentResults.LastOrDefault();
 
 
@@ -294,13 +294,13 @@ public class SearchReplacePanel : Control
 
         if (!string.IsNullOrEmpty(SearchPattern))
         {
-            var offset = _textArea.Caret.Offset;
+            int offset = _textArea.Caret.Offset;
             if (changeSelection)
             {
                 _textArea.ClearSelection();
             }
 
-            foreach (var result in _strategy.FindAll(_textArea.Document, 0, _textArea.Document.TextLength))
+            foreach (ISearchResult result in _strategy.FindAll(_textArea.Document, 0, _textArea.Document.TextLength))
             {
                 if (changeSelection && result.Offset >= offset)
                 {
@@ -343,7 +343,7 @@ public class SearchReplacePanel : Control
                     FindNext();
                 if (_searchTextBox != null)
                 {
-                    var error = Validation.GetErrors(_searchTextBox).FirstOrDefault();
+                    ValidationError? error = Validation.GetErrors(_searchTextBox).FirstOrDefault();
                     if (error != null)
                     {
                         _messageView.Content = Localization.ErrorText + " " + error.ErrorContent;
@@ -369,9 +369,9 @@ public class SearchReplacePanel : Control
     /// </summary>
     public void Close()
     {
-        var hasFocus = IsKeyboardFocusWithin;
+        bool hasFocus = IsKeyboardFocusWithin;
 
-        var layer = AdornerLayer.GetAdornerLayer(_textArea);
+        AdornerLayer layer = AdornerLayer.GetAdornerLayer(_textArea);
         layer?.Remove(_adorner);
         _messageView.IsOpen = false;
         _textArea.TextView.BackgroundRenderers.Remove(_renderer);
@@ -399,8 +399,9 @@ public class SearchReplacePanel : Control
     /// </summary>
     public void Open()
     {
-        if (!IsClosed) return;
-        var layer = AdornerLayer.GetAdornerLayer(_textArea);
+        if (!IsClosed)
+            return;
+        AdornerLayer layer = AdornerLayer.GetAdornerLayer(_textArea);
         layer?.Add(_adorner);
         _textArea.TextView.BackgroundRenderers.Add(_renderer);
         IsClosed = false;
@@ -413,7 +414,7 @@ public class SearchReplacePanel : Control
     public event EventHandler<SearchOptionsChangedEventArgs> SearchOptionsChanged;
 
     /// <summary>
-    /// Raises the <see cref="SearchReplacePanel.SearchOptionsChanged" /> event.
+    /// Raises the <see cref="SearchOptionsChanged" /> event.
     /// </summary>
     protected virtual void OnSearchOptionsChanged(SearchOptionsChangedEventArgs e)
     {
@@ -453,7 +454,7 @@ public class SearchReplacePanel : Control
     public static SearchReplacePanel Install(TextArea textArea)
     {
         ArgumentNullException.ThrowIfNull(textArea);
-        var panel = new SearchReplacePanel { _textArea = textArea };
+        SearchReplacePanel panel = new() { _textArea = textArea };
         panel.AttachInternal(textArea);
         panel._handler = new SearchReplaceInputHandler(textArea, panel);
         textArea.DefaultInputHandler.NestedInputHandlers.Add(panel._handler);
@@ -464,10 +465,10 @@ public class SearchReplacePanel : Control
     {
         if (!IsReplaceMode) return;
 
-        var selectedResult = GetSelectedResult();
+        ISearchResult? selectedResult = GetSelectedResult();
         if (selectedResult != null)
         {
-            var replacement = selectedResult.ReplaceWith(ReplacePattern ?? string.Empty);
+            string replacement = selectedResult.ReplaceWith(ReplacePattern ?? string.Empty);
             _textArea.Selection.ReplaceSelectionWithText(replacement);
         }
 
@@ -479,22 +480,23 @@ public class SearchReplacePanel : Control
         if (_textArea.Selection.IsEmpty)
             return null;
 
-        var selectionStartOffset = _textArea.Document.GetOffset(_textArea.Selection.StartPosition.Location);
-        var selectionLength = _textArea.Selection.Length;
+        int selectionStartOffset = _textArea.Document.GetOffset(_textArea.Selection.StartPosition.Location);
+        int selectionLength = _textArea.Selection.Length;
         return _renderer.CurrentResults.Find(r => r.Offset == selectionStartOffset && r.Length == selectionLength);
     }
 
     public void ReplaceAll()
     {
-        if (!IsReplaceMode) return;
+        if (!IsReplaceMode)
+            return;
 
-        var document = _textArea.Document;
+        TextDocument document = _textArea.Document;
         using (document.RunUpdate())
         {
-            var results = _renderer.CurrentResults.OrderByDescending(x => x.EndOffset).ToArray();
-            foreach (var result in results)
+            ISearchResult[] results = _renderer.CurrentResults.OrderByDescending(x => x.EndOffset).ToArray();
+            foreach (ISearchResult result in results)
             {
-                var replacement = result.ReplaceWith(ReplacePattern ?? string.Empty);
+                string replacement = result.ReplaceWith(ReplacePattern ?? string.Empty);
                 document.Replace(result.Offset, result.Length, new StringTextSource(replacement));
             }
         }
@@ -692,12 +694,12 @@ class SearchReplaceResultBackgroundRenderer : IBackgroundRenderer
         if (CurrentResults == null || !textView.VisualLinesValid)
             return;
 
-        var visualLines = textView.VisualLines;
+        System.Collections.ObjectModel.ReadOnlyCollection<VisualLine> visualLines = textView.VisualLines;
         if (visualLines.Count == 0)
             return;
 
-        var viewStart = visualLines[0].FirstDocumentLine.Offset;
-        var viewEnd = visualLines[^1].LastDocumentLine.EndOffset;
+        int viewStart = visualLines[0].FirstDocumentLine.Offset;
+        int viewEnd = visualLines[^1].LastDocumentLine.EndOffset;
 
         foreach (var result in CurrentResults.Where(r => viewStart <= r.Offset && r.Offset <= viewEnd || viewStart <= r.EndOffset && r.EndOffset <= viewEnd))
         {

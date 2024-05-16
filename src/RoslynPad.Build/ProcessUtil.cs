@@ -7,7 +7,7 @@ internal class ProcessUtil
 {
     public static async Task<ProcessResult> RunProcessAsync(string path, string workingDirectory, string arguments, CancellationToken cancellationToken)
     {
-        var process = new Process
+        Process process = new()
         {
             StartInfo = new ProcessStartInfo
             {
@@ -22,10 +22,10 @@ internal class ProcessUtil
             EnableRaisingEvents = true,
         };
 
-        var exitTcs = new TaskCompletionSource<object?>();
+        TaskCompletionSource<object?> exitTcs = new();
         process.Exited += (_, _) => exitTcs.TrySetResult(null);
 
-        using var _ = cancellationToken.Register(() =>
+        using CancellationTokenRegistration _ = cancellationToken.Register(() =>
         {
             try
             {
@@ -60,19 +60,19 @@ internal class ProcessUtil
 
         public Task WaitForExitAsync()
         {
-            var task = _exitTcs.Task;
+            Task task = _exitTcs.Task;
             return task;
         }
 
         public async IAsyncEnumerable<string> GetStandardOutputLinesAsync()
         {
-            var output = _process.StandardOutput;
+            StreamReader output = _process.StandardOutput;
             while (true)
             {
-                var line = await output.ReadLineAsync().ConfigureAwait(false);
+                string? line = await output.ReadLineAsync().ConfigureAwait(false);
                 if (line == null)
                 {
-                    var task = _exitTcs.Task.ConfigureAwait(false);
+                    System.Runtime.CompilerServices.ConfiguredTaskAwaitable<object?> task = _exitTcs.Task.ConfigureAwait(false);
                     await task;
                     yield break;
                 }

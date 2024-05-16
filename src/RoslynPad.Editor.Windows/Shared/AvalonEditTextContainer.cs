@@ -39,10 +39,10 @@ public sealed class AvalonEditTextContainer : SourceTextContainer, IDisposable
     {
         if (_updatding) return;
 
-        var oldText = _currentText;
+        SourceText oldText = _currentText;
 
-        var textSpan = new TextSpan(e.Offset, e.RemovalLength);
-        var textChangeRange = new TextChangeRange(textSpan, e.InsertionLength);
+        TextSpan textSpan = new(e.Offset, e.RemovalLength);
+        TextChangeRange textChangeRange = new(textSpan, e.InsertionLength);
         _currentText = _currentText.WithChanges(new TextChange(textSpan, e.InsertedText?.Text ?? string.Empty));
 
         TextChanged?.Invoke(this, new TextChangeEventArgs(oldText, _currentText, textChangeRange));
@@ -54,19 +54,19 @@ public sealed class AvalonEditTextContainer : SourceTextContainer, IDisposable
     {
         _updatding = true;
         Document.BeginUpdate();
-        var editor = Editor;
-        var caretOffset = editor?.CaretOffset ?? 0;
-        var documentOffset = 0;
+        TextEditor? editor = Editor;
+        int caretOffset = editor?.CaretOffset ?? 0;
+        int documentOffset = 0;
         try
         {
-            var changes = newText.GetTextChanges(_currentText);
+            IReadOnlyList<TextChange> changes = newText.GetTextChanges(_currentText);
 
-            foreach (var change in changes)
+            foreach (TextChange change in changes)
             {
-                var newTextChange = change.NewText ?? string.Empty;
+                string newTextChange = change.NewText ?? string.Empty;
                 Document.Replace(change.Span.Start + documentOffset, change.Span.Length, new StringTextSource(newTextChange));
 
-                var changeOffset = newTextChange.Length - change.Span.Length;
+                int changeOffset = newTextChange.Length - change.Span.Length;
                 if (caretOffset >= change.Span.Start + documentOffset + change.Span.Length)
                 {
                     // If caret is after text, adjust it by text size difference

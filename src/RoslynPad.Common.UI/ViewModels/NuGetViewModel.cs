@@ -33,13 +33,13 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
     {
         try
         {
-            var settings = LoadSettings();
+            Settings settings = LoadSettings();
             ConfigPath = settings.GetConfigFilePaths()[0];
             GlobalPackageFolder = SettingsUtility.GetGlobalPackagesFolder(settings);
 
             DefaultCredentialServiceUtility.SetupDefaultCredentialService(NullLogger.Instance, nonInteractive: false);
 
-            var sourceProvider = new PackageSourceProvider(settings);
+            PackageSourceProvider sourceProvider = new(settings);
             _sourceRepositoryProvider = new CommandLineSourceRepositoryProvider(sourceProvider);
         }
         catch (Exception e)
@@ -56,7 +56,7 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
 
             const int retries = 3;
 
-            for (var i = 1; i <= retries; i++)
+            for (int i = 1; i <= retries; i++)
             {
 
                 try
@@ -81,10 +81,10 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
     {
         _initializationException?.Throw();
 
-        var filter = new SearchFilter(includePrerelease);
-        var packages = new List<PackageData>();
+        SearchFilter filter = new(includePrerelease);
+        List<PackageData> packages = [];
 
-        foreach (var sourceRepository in _sourceRepositoryProvider!.GetRepositories())
+        foreach (SourceRepository sourceRepository in _sourceRepositoryProvider!.GetRepositories())
         {
             IPackageSearchMetadata[]? result;
             try
@@ -98,14 +98,14 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
 
             if (exactMatch)
             {
-                var match = Array.Find(result, c => string.Equals(c.Identity.Id, searchTerm,
+                IPackageSearchMetadata? match = Array.Find(result, c => string.Equals(c.Identity.Id, searchTerm,
                     StringComparison.OrdinalIgnoreCase));
                 result = match != null ? [match] : null;
             }
 
             if (result?.Length > 0)
             {
-                var repositoryPackages = result
+                PackageData[] repositoryPackages = result
                                          .Select(x => new PackageData(x))
                                          .ToArray();
                 await Task.WhenAll(repositoryPackages.Select(x => x.InitializeAsync())).ConfigureAwait(false);
@@ -118,7 +118,7 @@ public sealed class NuGetViewModel : NotificationObject, INuGetCompletionProvide
 
     async Task<IReadOnlyList<INuGetPackage>> INuGetCompletionProvider.SearchPackagesAsync(string searchString, bool exactMatch, CancellationToken cancellationToken)
     {
-        var packages = await GetPackagesAsync(searchString, includePrerelease: true, exactMatch, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<PackageData> packages = await GetPackagesAsync(searchString, includePrerelease: true, exactMatch, cancellationToken).ConfigureAwait(false);
         return packages;
     }
 

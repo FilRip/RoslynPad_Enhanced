@@ -13,7 +13,7 @@ internal sealed class DocumentCollection : ObservableCollection<DocumentViewMode
     {
         _dictionary = [];
 
-        foreach (var item in items)
+        foreach (DocumentViewModel item in items)
         {
             Add(item);
         }
@@ -33,14 +33,14 @@ internal sealed class DocumentCollection : ObservableCollection<DocumentViewMode
 
     protected override void RemoveItem(int index)
     {
-        var item = Items[index];
+        DocumentViewModel item = Items[index];
         base.RemoveItem(index);
         _dictionary.Remove(item.Name);
     }
 
     protected override void SetItem(int index, DocumentViewModel item)
     {
-        var existingItem = Items[index];
+        DocumentViewModel existingItem = Items[index];
         base.SetItem(index, existingItem);
         _dictionary.Remove(existingItem.Name);
         _dictionary.Add(item.Name, item);
@@ -50,7 +50,7 @@ internal sealed class DocumentCollection : ObservableCollection<DocumentViewMode
     {
         get
         {
-            _dictionary.TryGetValue(name, out var item);
+            _dictionary.TryGetValue(name, out DocumentViewModel? item);
             return item;
         }
     }

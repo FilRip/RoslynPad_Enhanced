@@ -42,7 +42,7 @@ public class DocumentFileWatcher : IDisposable, IObservable<DocumentFileChanged>
         get => _fileSystemWatcher.Path;
         set
         {
-            var exists = Directory.Exists(value);
+            bool exists = Directory.Exists(value);
             if (exists)
             {
                 _fileSystemWatcher.Path = value;
@@ -80,7 +80,7 @@ public class DocumentFileWatcher : IDisposable, IObservable<DocumentFileChanged>
 
     private void Publish(DocumentFileChanged documentFileChanged)
     {
-        foreach (var observer in _observers.ToArray())
+        foreach (IObserver<DocumentFileChanged> observer in _observers.ToArray())
         {
             _appDispatcher.InvokeAsync(() => observer.OnNext(documentFileChanged));
         }

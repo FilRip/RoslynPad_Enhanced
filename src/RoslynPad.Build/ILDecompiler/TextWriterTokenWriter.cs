@@ -7,8 +7,8 @@ internal static class TextWriterTokenWriter
 {
     public static string ConvertString(string str)
     {
-        var sb = new StringBuilder();
-        foreach (var ch in str)
+        StringBuilder sb = new();
+        foreach (char ch in str)
         {
             sb.Append(ch == '"' ? "\\\"" : ConvertChar(ch));
         }

@@ -37,7 +37,7 @@ public sealed class ContextActionsRenderer
 
     private CancellationTokenSource? _cancellationTokenSource;
     private List<object>? _actions;
-    private ImageSource? _iconImage;
+    private CommonImage? _iconImage;
 
     public ContextActionsRenderer(CodeTextEditor editor, TextMarkerService textMarkerService)
     {
@@ -62,7 +62,7 @@ public sealed class ContextActionsRenderer
         _delayMoveTimer.Tick += TimerMoveTick;
     }
 
-    public ImageSource? IconImage
+    public CommonImage? IconImage
     {
         get => _iconImage;
         set

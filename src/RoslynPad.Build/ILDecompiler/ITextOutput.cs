@@ -89,7 +89,7 @@ internal sealed class PlainTextOutput : ITextOutput, IDisposable
         if (_needsIndent)
         {
             _needsIndent = false;
-            for (var i = 0; i < _indent; i++)
+            for (int i = 0; i < _indent; i++)
             {
                 _writer.Write('\t');
             }

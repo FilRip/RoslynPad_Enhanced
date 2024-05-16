@@ -52,12 +52,12 @@ internal sealed partial class SaveDocumentDialog : ISaveDocumentDialog, INotifyP
     {
         if (sender is not TextBox textBox) return;
 
-        var invalidChars = Path.GetInvalidFileNameChars();
-        foreach (var c in e.Changes)
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        foreach (TextChange c in e.Changes)
         {
             if (c.AddedLength == 0) continue;
             textBox.Select(c.Offset, c.AddedLength);
-            var filteredText = invalidChars.Aggregate(textBox.SelectedText,
+            string filteredText = invalidChars.Aggregate(textBox.SelectedText,
                 (current, invalidChar) => current.Replace(invalidChar.ToString(), string.Empty));
             if (textBox.SelectedText != filteredText)
             {

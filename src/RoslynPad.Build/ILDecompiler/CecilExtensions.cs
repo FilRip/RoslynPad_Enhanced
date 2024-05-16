@@ -29,7 +29,7 @@ internal static class CecilExtensions
     #region GetPushDelta / GetPopDelta
     public static int GetPushDelta(this Instruction instruction)
     {
-        var code = instruction.OpCode;
+        OpCode code = instruction.OpCode;
         switch (code.StackBehaviourPush)
         {
             case StackBehaviour.Push0:
@@ -59,7 +59,7 @@ internal static class CecilExtensions
 
     public static int? GetPopDelta(this Instruction instruction, MethodDefinition methodDef)
     {
-        var code = instruction.OpCode;
+        OpCode code = instruction.OpCode;
         switch (code.StackBehaviourPop)
         {
             case StackBehaviour.Pop0:
@@ -97,8 +97,8 @@ internal static class CecilExtensions
                 if (code.FlowControl != FlowControl.Call)
                     break;
 
-                var method = (IMethodSignature)instruction.Operand;
-                var count = method.HasParameters ? method.Parameters.Count : 0;
+                IMethodSignature method = (IMethodSignature)instruction.Operand;
+                int count = method.HasParameters ? method.Parameters.Count : 0;
                 if (method.HasThis && code != OpCodes.Newobj)
                     ++count;
                 if (code == OpCodes.Calli)
@@ -178,8 +178,8 @@ internal static class CecilExtensions
 
     public static HashSet<MethodDefinition> GetAccessorMethods(this TypeDefinition type)
     {
-        var accessorMethods = new HashSet<MethodDefinition>();
-        foreach (var property in type.Properties)
+        HashSet<MethodDefinition> accessorMethods = [];
+        foreach (PropertyDefinition property in type.Properties)
         {
             accessorMethods.Add(property.GetMethod);
             accessorMethods.Add(property.SetMethod);
@@ -189,14 +189,14 @@ internal static class CecilExtensions
                     accessorMethods.Add(m);
             }
         }
-        foreach (var ev in type.Events)
+        foreach (EventDefinition ev in type.Events)
         {
             accessorMethods.Add(ev.AddMethod);
             accessorMethods.Add(ev.RemoveMethod);
             accessorMethods.Add(ev.InvokeMethod);
             if (ev.HasOtherMethods)
             {
-                foreach (var m in ev.OtherMethods)
+                foreach (MethodDefinition m in ev.OtherMethods)
                     accessorMethods.Add(m);
             }
         }
@@ -227,7 +227,7 @@ internal static class CecilExtensions
     [Obsolete("throwing exceptions is considered a bug")]
     public static TypeDefinition ResolveOrThrow(this TypeReference typeReference)
     {
-        var resolved = typeReference.Resolve() ?? throw new InvalidOperationException("ReferenceResolving");
+        TypeDefinition resolved = typeReference.Resolve() ?? throw new InvalidOperationException("ReferenceResolving");
         return resolved;
     }
 
@@ -235,7 +235,7 @@ internal static class CecilExtensions
     {
         if (provider != null && provider.HasCustomAttributes)
         {
-            foreach (var a in provider.CustomAttributes)
+            foreach (CustomAttribute a in provider.CustomAttributes)
             {
                 if (a.AttributeType.FullName == "System.Runtime.CompilerServices.CompilerGeneratedAttribute")
                     return true;
@@ -258,9 +258,9 @@ internal static class CecilExtensions
         if (!type.IsEnum)
             throw new ArgumentException("Type must be an enum", nameof(type));
 
-        var fields = type.Fields;
+        Mono.Collections.Generic.Collection<FieldDefinition> fields = type.Fields;
 
-        foreach (var field in fields)
+        foreach (FieldDefinition field in fields)
         {
             if (!field.IsStatic)
                 return field.FieldType;
@@ -275,7 +275,7 @@ internal static class CecilExtensions
             return false;
         if (string.IsNullOrEmpty(type.Namespace) && type.HasGeneratedName() && (type.Name.Contains("AnonType") || type.Name.Contains("AnonymousType")))
         {
-            var td = type.Resolve();
+            TypeDefinition td = type.Resolve();
             return td != null && td.IsCompilerGenerated();
         }
         return false;
@@ -325,15 +325,15 @@ internal static class CecilExtensions
         defaultMemberAttribute = null;
         if (property.HasParameters)
         {
-            var accessor = property.GetMethod ?? property.SetMethod;
+            MethodDefinition accessor = property.GetMethod ?? property.SetMethod;
             var basePropDef = property;
             if (accessor.HasOverrides)
             {
                 // if the property is explicitly implementing an interface, look up the property in the interface:
-                var baseAccessor = accessor.Overrides[0].Resolve();
+                MethodDefinition baseAccessor = accessor.Overrides[0].Resolve();
                 if (baseAccessor != null)
                 {
-                    foreach (var baseProp in baseAccessor.DeclaringType.Properties)
+                    foreach (PropertyDefinition baseProp in baseAccessor.DeclaringType.Properties)
                     {
                         if (baseProp.GetMethod == baseAccessor || baseProp.SetMethod == baseAccessor)
                         {
@@ -345,7 +345,7 @@ internal static class CecilExtensions
                 else
                     return false;
             }
-            var defaultMemberName = basePropDef.DeclaringType.GetDefaultMemberName(out var attr);
+            string? defaultMemberName = basePropDef.DeclaringType.GetDefaultMemberName(out var attr);
             if (defaultMemberName == basePropDef.Name)
             {
                 defaultMemberAttribute = attr;

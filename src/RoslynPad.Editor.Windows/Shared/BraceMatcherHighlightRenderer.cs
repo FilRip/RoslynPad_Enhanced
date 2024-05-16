@@ -45,7 +45,7 @@ public class BraceMatcherHighlightRenderer : IBackgroundRenderer
     [MemberNotNull(nameof(_backgroundBrush))]
     private void UpdateBrush()
     {
-        var brush = ClassificationHighlightColors
+        Brush? brush = ClassificationHighlightColors
                     .GetBrush(AdditionalClassificationTypeNames.BraceMatching)
                     ?.Background?.GetBrush(null);
 
@@ -86,10 +86,10 @@ public class BraceMatcherHighlightRenderer : IBackgroundRenderer
         if (LeftOfPosition == null && RightOfPosition == null)
             return;
 
-        var builder = new BackgroundGeometryBuilder
+        BackgroundGeometryBuilder builder = new()
         {
             CornerRadius = 1,
-            AlignToWholePixels = true
+            AlignToWholePixels = true,
         };
 
         if (RightOfPosition != null)
@@ -108,7 +108,7 @@ public class BraceMatcherHighlightRenderer : IBackgroundRenderer
             builder.CloseFigure();
         }
 
-        var geometry = builder.CreateGeometry();
+        Geometry geometry = builder.CreateGeometry();
         if (geometry != null)
         {
             drawingContext.DrawGeometry(_backgroundBrush, null, geometry);

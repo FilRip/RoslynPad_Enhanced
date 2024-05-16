@@ -36,7 +36,7 @@ internal static class MSBuildHelper
 
     private static XElement Reference(LibraryRef reference)
     {
-        var element = new XElement(reference.Kind.ToString(),
+        XElement element = new(reference.Kind.ToString(),
             new XAttribute("Include", reference.Value));
 
         if (!string.IsNullOrEmpty(reference.Version))

@@ -21,7 +21,7 @@ public class Theme
 
     public Dictionary<string, string>? Colors { get; set; }
 
-    [JsonIgnore]
+    [JsonIgnore()]
     public ThemeType Type { get; set; }
 
     [JsonInclude]

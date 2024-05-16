@@ -31,7 +31,7 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
     public void Disassemble(MethodBody body)
     {
         // start writing IL code
-        var method = body.Method;
+        Mono.Cecil.MethodDefinition method = body.Method;
         _output.WriteLine("// Method begins at RVA 0x{0:x4}", method.RVA);
         _output.WriteLine("// Code size {0} (0x{0:x})", body.CodeSize);
         _output.WriteLine(".maxstack {0}", body.MaxStackSize);
@@ -45,7 +45,7 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
                 _output.Write("init ");
             _output.WriteLine("(");
             _output.Indent();
-            foreach (var v in method.Body.Variables)
+            foreach (VariableDefinition v in method.Body.Variables)
             {
                 _output.WriteDefinition("[" + v.Index + "] ", v);
                 v.VariableType.WriteTo(_output);
@@ -65,13 +65,13 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
 
         if (_detectControlStructure && body.Instructions.Count > 0)
         {
-            var inst = body.Instructions[0];
-            var branchTargets = GetBranchTargets(body.Instructions);
+            Instruction inst = body.Instructions[0];
+            HashSet<int> branchTargets = GetBranchTargets(body.Instructions);
             WriteStructureBody(new ILStructure(body), branchTargets, ref inst);
         }
         else
         {
-            foreach (var inst in method.Body.Instructions)
+            foreach (Instruction inst in method.Body.Instructions)
             {
                 inst.WriteTo(_output);
                 _output.WriteLine();
@@ -80,7 +80,7 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
             if (method.Body.HasExceptionHandlers)
             {
                 _output.WriteLine();
-                foreach (var eh in method.Body.ExceptionHandlers)
+                foreach (ExceptionHandler eh in method.Body.ExceptionHandlers)
                 {
                     eh.WriteTo(_output);
                     _output.WriteLine();
@@ -91,14 +91,14 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
 
     private static HashSet<int> GetBranchTargets(IEnumerable<Instruction> instructions)
     {
-        var branchTargets = new HashSet<int>();
+        HashSet<int> branchTargets = [];
         foreach (object inst in instructions.Select(op => op.Operand))
         {
             if (inst is Instruction target)
                 branchTargets.Add(target.Offset);
 
             if (inst is Instruction[] targets)
-                foreach (var t in targets)
+                foreach (Instruction t in targets)
                     branchTargets.Add(t.Offset);
         }
         return branchTargets;
@@ -158,15 +158,15 @@ internal sealed class MethodBodyDisassembler(ITextOutput output, bool detectCont
 
     private void WriteStructureBody(ILStructure s, HashSet<int> branchTargets, ref Instruction inst)
     {
-        var isFirstInstructionInStructure = true;
-        var prevInstructionWasBranch = false;
-        var childIndex = 0;
+        bool isFirstInstructionInStructure = true;
+        bool prevInstructionWasBranch = false;
+        int childIndex = 0;
         while (inst != null && inst.Offset < s.EndOffset)
         {
-            var offset = inst.Offset;
+            int offset = inst.Offset;
             if (childIndex < s.Children.Count && s.Children[childIndex].StartOffset <= offset && offset < s.Children[childIndex].EndOffset)
             {
-                var child = s.Children[childIndex++];
+                ILStructure child = s.Children[childIndex++];
                 WriteStructureHeader(child);
                 WriteStructureBody(child, branchTargets, ref inst);
                 WriteStructureFooter(child);

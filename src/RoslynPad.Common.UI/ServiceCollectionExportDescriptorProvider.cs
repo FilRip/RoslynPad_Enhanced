@@ -11,8 +11,8 @@ public class ServiceCollectionExportDescriptorProvider(ServiceCollection service
 
     public override IEnumerable<ExportDescriptorPromise> GetExportDescriptors(CompositionContract contract, DependencyAccessor descriptorAccessor)
     {
-        if (!_services.TryGetValue(contract.ContractType, out var service) &&
-            !(contract.ContractType.IsGenericType && contract.ContractType.GetGenericTypeDefinition() is var genericType &&
+        if (!_services.TryGetValue(contract.ContractType, out ServiceDescriptor? service) &&
+            !(contract.ContractType.IsGenericType && contract.ContractType.GetGenericTypeDefinition() is Type genericType &&
             _services.TryGetValue(genericType, out service)))
         {
             yield break;
