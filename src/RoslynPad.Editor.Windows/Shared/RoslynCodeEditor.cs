@@ -151,7 +151,8 @@ public class RoslynCodeEditor : CodeTextEditor
             return;
         }
 
-        _braceMatchingCts?.Cancel();
+        if (_braceMatchingCts != null)
+            await _braceMatchingCts.CancelAsync();
 
         if (_braceMatchingService == null)
         {

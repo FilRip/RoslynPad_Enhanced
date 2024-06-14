@@ -768,7 +768,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
 
                 if (!projBuildResult.MarkerExists)
                 {
-                    File.WriteAllText(Path.Combine(projBuildResult.RestorePath, "Program.cs"), "_ = 0;");
+                    await File.WriteAllTextAsync(Path.Combine(projBuildResult.RestorePath, "Program.cs"), "_ = 0;", cancellationToken);
                     //await BuildGlobalJsonAsync(projBuildResult.RestorePath).ConfigureAwait(false);
                     File.Copy(_parameters.NuGetConfigPath, Path.Combine(projBuildResult.RestorePath, "nuget.config"), overwrite: true);
 
@@ -867,7 +867,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
                 .ToImmutableArray();
         }
 
-#pragma warning disable CS8321 // La fonction locale est déclarée mais jamais utilisée
+#pragma warning disable CS8321, S1144 // La fonction locale est déclarée mais jamais utilisée
         async Task BuildGlobalJsonAsync(string restorePath)
         {
             if (Platform?.IsDotNet != true)
@@ -878,7 +878,7 @@ internal partial class ExecutionHost : IExecutionHost, IDisposable
             string globalJson = $@"{{ ""sdk"": {{ ""version"": ""{Platform.FrameworkVersion}"" }} }}";
             await File.WriteAllTextAsync(Path.Combine(restorePath, "global.json"), globalJson, cancellationToken).ConfigureAwait(false);
         }
-#pragma warning restore CS8321 // La fonction locale est déclarée mais jamais utilisée
+#pragma warning restore CS8321, S1144 // La fonction locale est déclarée mais jamais utilisée
 
         async Task<CsprojBuildResult> BuildCsprojAsync()
         {

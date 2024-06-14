@@ -104,7 +104,7 @@ internal abstract class AbstractDirectivePathCompletionProvider : CompletionProv
 
     private static bool EndsWithQuote(string quotedPath)
     {
-        return quotedPath.Length >= 2 && quotedPath[quotedPath.Length - 1] == '"';
+        return quotedPath.Length >= 2 && quotedPath[^1] == '"';
     }
 
     /// <summary>

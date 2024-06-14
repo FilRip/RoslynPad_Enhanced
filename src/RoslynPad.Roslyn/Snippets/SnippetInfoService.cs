@@ -20,7 +20,7 @@ internal sealed class SnippetInfoService([Import(AllowDefault = true)] ISnippetI
     {
         return _inner?.GetSnippets().Select(x =>
             new Microsoft.CodeAnalysis.Snippets.SnippetInfo(x.Shortcut, x.Title, x.Description, null))
-            ?? Enumerable.Empty<Microsoft.CodeAnalysis.Snippets.SnippetInfo>();
+            ?? [];
     }
 
     public bool SnippetShortcutExists_NonBlocking(string shortcut)

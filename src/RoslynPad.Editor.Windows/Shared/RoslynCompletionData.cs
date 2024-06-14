@@ -127,7 +127,7 @@ internal sealed class RoslynCompletionData : ICompletionDataExtend//, INotifyPro
         _description.Child = description?.TaggedParts.ToTextBlock();
     }
 
-    public double Priority { get; private set; }
+    public double Priority { get; }
 
     public bool IsSelected => _item.Rules.MatchPriority == MatchPriority.Preselect;
 

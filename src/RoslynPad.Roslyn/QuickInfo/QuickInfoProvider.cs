@@ -118,7 +118,7 @@ internal sealed class QuickInfoProvider(IDeferredQuickInfoContentProvider conten
 
         foreach (var link in linkedDocumentIds)
         {
-            var linkedDocument = document.Project.Solution.GetDocument(link);
+            var linkedDocument = await document.Project.Solution.GetDocumentAsync(link, cancellationToken: cancellationToken);
             var linkedToken = await FindTokenInLinkedDocument(token, linkedDocument!, cancellationToken).ConfigureAwait(false);
 
             if (linkedToken != default)

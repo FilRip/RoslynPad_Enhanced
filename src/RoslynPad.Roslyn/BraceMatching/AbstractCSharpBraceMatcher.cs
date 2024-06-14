@@ -4,11 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace RoslynPad.Roslyn.BraceMatching;
 
-internal abstract class AbstractCSharpBraceMatcher : AbstractBraceMatcher
+internal abstract class AbstractCSharpBraceMatcher(SyntaxKind openBrace, SyntaxKind closeBrace) : AbstractBraceMatcher(new BraceCharacterAndKind(SyntaxFacts.GetText(openBrace)[0], (int)openBrace),
+           new BraceCharacterAndKind(SyntaxFacts.GetText(closeBrace)[0], (int)closeBrace))
 {
-    protected AbstractCSharpBraceMatcher(SyntaxKind openBrace, SyntaxKind closeBrace)
-        : base(new BraceCharacterAndKind(SyntaxFacts.GetText(openBrace)[0], (int)openBrace),
-               new BraceCharacterAndKind(SyntaxFacts.GetText(closeBrace)[0], (int)closeBrace))
-    {
-    }
 }
